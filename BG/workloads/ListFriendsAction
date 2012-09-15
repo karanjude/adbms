@@ -1,0 +1,28 @@
+operationcount=0
+workload=edu.usc.bg.workloads.CoreWorkload
+
+#user ativities
+BrowseSelfProfileSession=0
+BrowseFriendProfileSession=0
+CommentOnFriendResourceSession=0
+GenerateFriendReqSession=0
+AcceptFriendReqSession=0
+RejectFriendReqSession=0
+ThawFriendshipSession=0
+
+
+#user actions
+ViewProfileAction=0
+ListFriendsAction=1
+ViewFriendReqAction=0
+InviteFriendAction=0
+AcceptFriendReqAction=0
+RejectFriendReqAction=0
+ThawFriendshipAction=0
+ViewTopKResourcesAction=0
+ViewCommentsOnResourceAction=0
+PostCommentOnResourceAction=0
+
+requestdistribution=dzipfian
+zipfianmean=0.27
+
