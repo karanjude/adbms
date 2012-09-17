@@ -17,6 +17,7 @@ import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 
+
 public class DB2Client extends DB implements DB2ClientConstants {
 
 	private static final String DEFAULT_PROP = "";
