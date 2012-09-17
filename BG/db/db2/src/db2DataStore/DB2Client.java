@@ -3,7 +3,6 @@ package db2DataStore;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
@@ -20,6 +19,7 @@ import com.yahoo.ycsb.DBException;
 public class DB2Client extends DB implements DB2ClientConstants {
 
 	private static final String DEFAULT_PROP = "";
+	private static final String DEFAULT_DRIVER = "com.ibm.db2.jcc.DB2Driver";
 
 	private boolean initialized;
 	private Properties props;
@@ -37,14 +37,11 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		String urls = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
 		String user = props.getProperty(CONNECTION_USER, DEFAULT_PROP);
 		String passwd = props.getProperty(CONNECTION_PASSWD, DEFAULT_PROP);
-		String driver = props.getProperty(DRIVER_CLASS);
-		if (null == driver || driver.length() == 0) {
-			// driver = ""
-		}
+		String driver = props.getProperty(DRIVER_CLASS, DEFAULT_DRIVER);
 
 		try {
 			if (driver != null) {
-				Class.forName("com.ibm.db2.jcc.DB2Driver");
+				Class.forName(driver);
 			}
 			for (String url : urls.split(",")) {
 				conn = DriverManager.getConnection(url, user, passwd);
@@ -180,30 +177,33 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public void createSchema(Properties props) {
+		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
+		
 		Statement stmt = null;
 		Statement selectStatement = null;
 		try {
 			stmt = conn.createStatement();
 			selectStatement = conn.createStatement();
-			String db = "test";
+			String db = extractDBFromUrl(url);
 
-			dropTable(selectStatement, db, "FRNDSHIP");
-			createTable(stmt, db, "FRNDSHIP",
-					"CREATE TABLE %s.FRNDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1)");
+			dropTable(selectStatement, db, "FRIENDSHIP");
+			createTable(stmt, db, "FRIENDSHIP",
+					"CREATE TABLE %s.FRIENDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1)");
 
-			dropTable(selectStatement, db, "MANIPL");
+			dropTable(selectStatement, db, "MANIPULATION");
 			createTable(
 					stmt,
 					db,
-					"MANIPL",
-					"CREATE TABLE %s.MANIPL(MID int, CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(200), TYPE VARCHAR(200), CONTENT VARCHAR(200))");
-
-			dropTable(selectStatement, db, "RSRCS");
+					"MANIPULATION",
+					"CREATE TABLE %s.MANIPULATION(MID int, CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(200), TYPE VARCHAR(200), CONTENT VARCHAR(200))");
+			
+			dropTable(selectStatement, db, "RESOURCE");
+			
 			createTable(
 					stmt,
 					db,
-					"RSRCS",
-					"CREATE TABLE %s.RSRCS(RID int,CREATORID int,WALLUSERID int, TYPE VARCHAR(200),BODY VARCHAR(200), DOC VARCHAR(200))");
+					"RESOURCE",
+					"CREATE TABLE %s.RESOURCE(RID int,CREATORID int,WALLUSERID int, TYPE VARCHAR(200),BODY VARCHAR(200), DOC VARCHAR(200))");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
@@ -215,6 +215,13 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					e.printStackTrace(System.out);
 				}
 		}
+	}
+
+	private String extractDBFromUrl(String url) {
+		String[] parts = url.split("/");
+		int n = parts.length;
+		String db = parts[n-1];
+		return db;
 	}
 
 	private void createTable(Statement stmt, String db, String table, String sql) {
