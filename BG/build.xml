@@ -54,6 +54,11 @@
     <property name="db.dir" value="db/hbase"/>
     <antcall target="dbcompile"/>
   </target>
+   	
+<target name="dbcompile-db2" depends="compile">
+    <property name="db.dir" value="db/db2"/>
+    <antcall target="dbcompile"/>
+  </target>
 
   <target name="dbcompile-mongodb" depends="compile">
     <property name="db.dir" value="db/mongodb"/>
