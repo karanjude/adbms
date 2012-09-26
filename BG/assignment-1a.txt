@@ -1,0 +1,257 @@
+Name: Karan Singh
+USCID: 5577894215
+
+Data Store: IBM DB2
+
+Interface used for BG Client: JDBC
+
+Assumptions Made for Physical Design Of DataStore:
+Since social networks, compared to write operations are more read intensive.I am designing the system focussing more on increasing the read performance.
+
+Physical Design:
+
+CREATE TABLE USERS(
+       UID int NULL AUTO_INCREMENT,
+       UNAME varchar(200),
+       PASSWD varchar(200), 
+       FNAME varchar(200), 
+       LNAME varchar(200), 
+       GNDR varchar(200), 
+       DOB varchar(200), 
+       JNDATE varchar(200),
+       LVDATE varchar(200), 
+       ADDR varchar(200), 
+       EMAIL varchar(200), 
+       TEL VARCHAR(200),
+       NO_PEND_REQ int,
+       FRND_CNT int,
+       RSRC_CNT int,
+       PRIMARY KEY(USERID))
+
+CREATE TABLE PENDING_FRIENDSHIP(
+       USERID1 int, 
+       USERID2 int,
+       PRIMARY KEY(USERID1, USERID2))
+
+CREATE PNDG_FRNDSHP_UID1_IDX ON PENDING_FRIENDSHIP(USERID1)
+
+CREATE TABLE FRIENDSHIP(
+       USERID1 int, 
+       USERID2 int,
+       PRIMARY KEY(USERID1, USERID2))
+
+CREATE INDEX FRNDSHP_UID1_IDX ON FRIENDSHIP(USERID1)
+
+CREATE TABLE MANIPULATION(
+       MID int NOT NULL AUTO_INCREMENT, 
+       CREATORID int, 
+       RID int, 
+       MODIFIERID int, 
+       TIMESTAMP VARCHAR(200),
+       TYPE VARCHAR(200), 
+       CONTENT VARCHAR(200), 
+       PRIMARY KEY(MID))
+
+CREATE INDEX RID_MANIP_IDX ON FRIENDSHIP(RID)
+
+CREATE TABLE RESOURCES(
+       RID int NOT NULL AUTO_INCREMENT,
+       CREATORID int,
+       TYPE VARCHAR(200),
+       BODY VARCHAR(200), 
+       DOC VARCHAR(200),
+       PTIME TIMESTAMP,
+       PRIMARY KEY(RID,CREATORID))
+
+CREATE INDEX PTM_RSRCS_IDX ON RESOURCES(PTIME)
+
+5a)
+View Profile of member with USERID equal to profileOwnerID:
+
+Number of pending friend invitations:
+
+=> select NO_PEND_REQ from USERS where UID = profileOwnerID
+
+Number of confirmed friendships:
+
+=> select FRND_CNT from USERS where UID = profileOwnerID
+
+Number of resources:
+
+=> select RSRC_CNT from USERS where UID = profileOwnerID
+
+All profile attributes of the member:
+
+=> select * from USERS where UID = profileOwnerID
+
+5b)
+List Friends of member with USERID equal to profileOwnerID:
+
+All profile attributes of each member who is friends with the member whose USERID equals profileOwnerID
+
+=> select u.* from USERS u, FRIENDSHIP f where f.USERID1 = u.UID and u.UID = profileOwnerID
+
+5c)
+View Friend Requests of member with USERID equal to profileOwnerID
+
+Retrieve the profile information of each member who has extended a friend invitation to the member whose USERID equals profileOwnerID
+
+=> select u.* from USERS u, PENDING_FRIENDSHIP f where f.USERID1 = u.UID and u.UID = profileOwnerID
+
+5d)
+InviterID Invites Friend inviteeID
+
+Update the data store to reflect the invitation. When the member with USERID equal to inviteeID performs View Friend Requests,
+the profile information of the inviterID must appear
+
+=> select u.* from USERS u, PENDING_FRIENDSHIP f where f.USERID1 = u.UID and f.USERID1 = inviteeID and u.UID = inviterID
+
+5e)
+Member A Accepts Friend Request by Member B, CreateFriendship(A,B)
+
+Update data store to reflect A and B are friends. When either Lists Friends, profile information of the
+other must appear.
+
+=> START TRANSACTION
+=> delete from PENDING_FRIENDSHIP where USERID1 = A and USERID2 = B
+=> delete from PENDING_FRIENDSHIP where USERID1 = B and USERID2 = A
+=> update USERS set NO_PEND_REQ = select count(*) from PENDING_FRIENDSHIP where USERID1 = A and UID = A 
+=> update USERS set NO_PEND_REQ = select count(*) from PENDING_FRIENDSHIP where USERID1 = B and UID = B 
+=> insert into FRIENDSHIP(USERID1, USERID2) values(A,B)
+=> insert into FRIENDSHIP(USERID1, USERID2) values(B,A)
+=> update USERS set NO_PEND_REQ = select count(*) from FRIENDSHIP where USERID1 = A and UID = A 
+=> update USERS set NO_PEND_REQ = select count(*) from FRIENDSHIP where USERID1 = B and UID = B 
+=> COMMIT
+
+5f)
+InviteeID Rejects Friend Request by inviterID
+
+Update to the data store to reflect this rejection. When the member with USERID equal to inviteeID performs View Friend Request action, profile attributes of inviterID should no longer appear. 
+
+=> delete from PENDING_FRIENDSHIP where USERID1 = InviteeID and USERID2 = inviterID
+
+5g)
+Member A Thaws Friendship with Member B
+
+Update the data store to reflect Members A and B are no longer friends. When either Lists Friends, profile information
+of the other must no longer appear
+
+=> START TRANSACTION
+=> Delete from FRIENDSHIP where (USERID1 = user1 and USERID2 = user2) 
+=> Delete from FRIENDSHIP where (USERID1 = user2 and USERID2 = user2) 
+=> COMMIT
+=> END TRANSACTION
+
+5h)
+View Top-K Resources for the member with USERID equal to profileOwnerID
+
+Retrieve the first K resources of the member with USERID equal to profileOwnerID.
+
+=> select * from RESOURCES where CREATORID = profileOwnerID order by PTIME DESC FETCH FIRST K ROWS ONLY
+
+5i)
+View Comments on a Resource
+
+Retrieve the comments on the resource with the specified resourceID 
+Note: profileOwnerID and requesterID are available
+
+=> select DOC from RESOURCES where rid = resourceID and CREATORID = profileOwnerID
+ 
+5j)
+Post Comment on a Resource
+
+Post the specified comment on the resource with the specified resourceID.
+
+=>
+
+INSERT INTO MANIPULATION(
+       CREATORID, 
+       RID, 
+       MODIFIERID, 
+       TIMESTAMP,
+       TYPE, 
+       CONTENT)
+
+       VALUES(
+       profileOwnerID,
+       resourceID,
+       modifierID,
+       NOW(),
+       'C',
+	contetn
+       )
+
+
+5k)
+Initial States
+
+Average number of friends per user
+
+=> select AVG(FRND_CNT) from USERS
+
+Average number of pending requests per user
+
+=> select AVG(NO_PEND_REQ) from USERS
+
+Average number of resources per user
+
+=> select AVG(RSRC_CNT) from USERS 
+
+5j)
+Insert Entity
+
+Insert entity User. How does the data store insert the provided profile information of the user
+
+=> INSERT INTO USERS(
+       UID,
+       UNAME,
+       PASSWD, 
+       FNAME, 
+       LNAME, 
+       GNDR, 
+       DOB, 
+       JNDATE,
+       LVDATE, 
+       ADDR, 
+       EMAIL, 
+       TEL,
+       NO_PEND_REQ,
+       FRND_CNT,
+       RSRC_CNT,
+       )
+       VALUES(
+       userName,
+       userPasswd,
+       firstName,
+       lastName,
+       userGender,
+       userDateOfBirth,
+       userJoiningDate,
+       NULL,
+       userAddress,
+       userEmail,
+       userTelPhone,
+       0,
+       0,
+       0
+       )
+
+Insert entity Resource. How does the data store insert the specified resource and its attribute values
+
+=> INSERT INTO RESOURCES(
+       CREATORID,
+       TYPE,
+       BODY,
+       DOC,
+       PTIME)
+       
+       VALUES(
+        profileOwnerID,
+	resourceType,
+	resourceBody,
+	resourceDoc,
+	NOW()
+       )
+
+
+
