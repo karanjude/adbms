@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,8 +32,11 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	private boolean initialized;
 	private Properties props;
 	private Connection conn;
+	private Connection transactionlConnection;
 
 	private ConcurrentHashMap<Integer, PreparedStatement> newCachedStatements;
+	private int count = 0;
+	private String dbname;
 
 	@Override
 	public void init() throws DBException {
@@ -45,14 +49,18 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		String user = props.getProperty(CONNECTION_USER, DEFAULT_PROP);
 		String passwd = props.getProperty(CONNECTION_PASSWD, DEFAULT_PROP);
 		String driver = props.getProperty(DRIVER_CLASS, DEFAULT_DRIVER);
-
+		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
+		dbname = extractDBFromUrl(url);
 		try {
 			if (driver != null) {
 				Class.forName(driver);
 			}
-			for (String url : urls.split(",")) {
-				conn = DriverManager.getConnection(url, user, passwd);
+			for (String url_ : urls.split(",")) {
+				conn = DriverManager.getConnection(url_, user, passwd);
 				conn.setAutoCommit(true);
+				transactionlConnection = DriverManager.getConnection(url_,
+						user, passwd);
+				transactionlConnection.setAutoCommit(true);
 			}
 			newCachedStatements = new ConcurrentHashMap<Integer, PreparedStatement>();
 		} catch (ClassNotFoundException e) {
@@ -81,6 +89,9 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			}
 			if (conn != null)
 				conn.close();
+			if (null != transactionlConnection) {
+				transactionlConnection.close();
+			}
 		} catch (SQLException e) {
 			e.printStackTrace(System.out);
 		}
@@ -99,21 +110,25 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 			String userTableSql = "CREATE TABLE %s.USERS("
 					+ "UID int NOT NULL "
-					+ "GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),"
+					+ "GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1),"
 					+ "UNAME varchar(200)," + "PASSWD varchar(200),"
 					+ "FNAME varchar(200)," + "LNAME varchar(200),"
 					+ "GNDR varchar(200)," + "DOB varchar(200),"
 					+ "JNDATE TIMESTAMP," + "LVDATE TIMESTAMP,"
 					+ "ADDR varchar(200)," + "EMAIL varchar(100),"
-					+ "TEL VARCHAR(10)," + "NO_PEND_REQ int," + "FRND_CNT int,"
-					+ "RSRC_CNT int," + "PRIMARY KEY(UID))";
+					+ "TEL VARCHAR(10)," + "NO_PEND_REQ int DEFAULT 0,"
+					+ "FRND_CNT int DEFAULT 0," + "RSRC_CNT int,"
+					+ "PRIMARY KEY(UID))";
 
 			dropTable(selectStatement, db, "USERS");
 			createTable(stmt, db, "USERS", userTableSql);
 
 			dropTable(selectStatement, db, "FRIENDSHIP");
-			createTable(stmt, db, "FRIENDSHIP",
-					"CREATE TABLE %s.FRIENDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1)");
+			createTable(
+					stmt,
+					db,
+					"FRIENDSHIP",
+					"CREATE TABLE %s.FRIENDSHIP(USERID1 int NOT NULL, USERID2 int NOT NULL,PRIMARY KEY(USERID1, USERID2))");
 
 			dropTable(selectStatement, db, "MANIPULATION");
 			createTable(
@@ -122,13 +137,17 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					"MANIPULATION",
 					"CREATE TABLE %s.MANIPULATION(MID int, CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(200), TYPE VARCHAR(200), CONTENT VARCHAR(200))");
 
-			dropTable(selectStatement, db, "RESOURCE");
+			dropTable(selectStatement, db, "RESOURCES");
 
-			createTable(
-					stmt,
-					db,
-					"RESOURCE",
-					"CREATE TABLE %s.RESOURCE(RID int,CREATORID int,WALLUSERID int, TYPE VARCHAR(200),BODY VARCHAR(200), DOC VARCHAR(200))");
+			String resourceCreateQuery = "CREATE TABLE %s.RESOURCES("
+					+ "RID int NOT NULL "
+					+ "GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1),"
+					+ "CREATORID int NOT NULL,WALLUSERID int NOT NULL,"
+					+ "TYPE VARCHAR(200)," + "BODY VARCHAR(200),"
+					+ "DOC VARCHAR(200),"
+					+ "PRIMARY KEY(RID,CREATORID,WALLUSERID))";
+
+			createTable(stmt, db, "RESOURCES", resourceCreateQuery);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
@@ -151,6 +170,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	private void createTable(Statement stmt, String db, String table, String sql) {
 		try {
+			System.out.println(String.format(sql, db));
 			stmt.executeUpdate(String.format(sql, db));
 			System.out.println(String.format("%s.%s CREATED", db, table));
 		} catch (SQLException e) {
@@ -172,8 +192,64 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
+		System.out.println("create friendship " + friendid1 + " " + friendid2);
+
+		// update USERS set FRND_CNT = (select FRND_CNT + 1 from USERS where
+		// UID
+		// = A) where UID
+
+		String updateFriendCountSql = String
+				.format(
+						"update %s.USERS set FRND_CNT = (select FRND_CNT + 1 from %s.Users where UID = ?) where UID=?",
+						dbname, dbname);
+
+		String query = String.format(
+				"Insert into %s.FRIENDSHIP(USERID1, USERID2) VALUES(?,?)",
+				dbname);
+		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
+		try {
+			statements.add(insertFriends(friendid1, friendid2, query));
+			statements.add(insertFriends(friendid2, friendid1, query));
+			statements.add(updateFriendCount(friendid1, updateFriendCountSql));
+			statements.add(updateFriendCount(friendid2, updateFriendCountSql));
+			transactionlConnection.commit();
+		} catch (Exception e) {
+			try {
+				transactionlConnection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			return 1;
+		} finally {
+			for (PreparedStatement preparedStatement : statements) {
+				try {
+					preparedStatement.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 		return 0;
+	}
+
+	private PreparedStatement updateFriendCount(int friendid, String query)
+			throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection.prepareStatement(query);
+		preparedStatement.setInt(1, friendid);
+		preparedStatement.setInt(2, friendid);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
+	}
+
+	private PreparedStatement insertFriends(int friendid1, int friendid2,
+			String query) throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection.prepareStatement(query);
+		preparedStatement.setInt(1, friendid1);
+		preparedStatement.setInt(2, friendid2);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
 	}
 
 	@Override
@@ -185,7 +261,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	@Override
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 
@@ -193,7 +268,114 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	public int insertEntity(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
+		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
 
+		// System.out.println(entitySet);
+
+		if (entitySet.equals("users")) {
+			insertUsers(values, dbname);
+		} else if (entitySet.equals("resources")) {
+			insertResources(values, dbname);
+		}
+
+		return 0;
+	}
+
+	private void insertResources(HashMap<String, ByteIterator> values, String db) {
+		System.out.println("inserting resources " + count++);
+		String query = insertResourceQuery(values, db);
+		// System.out.println(query);
+
+		Integer creatorId = Integer.parseInt(executeInsertResourceQuery(values,
+				query));
+
+		String updateFriendCountSql = String
+				.format(
+						"update %s.USERS set RSRC_CNT = (select RSRC_CNT + 1 from %s.Users where UID = ?) where UID=?",
+						dbname, dbname);
+
+		PreparedStatement preparedStatement = null;
+		try {
+			preparedStatement = transactionlConnection
+					.prepareStatement(updateFriendCountSql);
+			preparedStatement.setInt(1, creatorId);
+			preparedStatement.setInt(2, creatorId);
+			preparedStatement.executeUpdate();
+			transactionlConnection.commit();
+		} catch (SQLException e) {
+			try {
+				transactionlConnection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			e.printStackTrace();
+		} finally {
+			if (null != preparedStatement) {
+				try {
+					preparedStatement.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	private String executeInsertResourceQuery(
+			HashMap<String, ByteIterator> values, String query) {
+		String creatorid = null;
+		PreparedStatement preparedStatement;
+
+		try {
+			preparedStatement = conn.prepareStatement(query);
+			int cnt = 1;
+			for (Entry<String, ByteIterator> entry : values.entrySet()) {
+				String key = entry.getKey();
+				String v = entry.getValue().toString();
+				if (key.equals("creatorid") || key.equals("walluserid")) {
+					if (key.equals("creatorid")) {
+						creatorid = v;
+					}
+					preparedStatement.setInt(cnt, Integer.parseInt(v));
+				} else {
+					String r = v.substring(0, Math.min(190, v.length()));
+					preparedStatement.setString(cnt, r);
+				}
+				cnt++;
+			}
+			int rs = preparedStatement.executeUpdate();
+			preparedStatement.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return creatorid;
+	}
+
+	private String insertResourceQuery(HashMap<String, ByteIterator> values,
+			String db) {
+		String fields = "(";
+		String sqlValues = "(";
+		int fieldCounter = 0;
+
+		for (Entry<String, ByteIterator> it : values.entrySet()) {
+			if (0 == fieldCounter) {
+				fields += it.getKey();
+				sqlValues += "?";
+			} else {
+				fields += "," + it.getKey();
+				sqlValues += ",?";
+			}
+			fieldCounter++;
+		}
+		fields += ")";
+		sqlValues += ")";
+		String query = "INSERT into %s.RESOURCES " + fields + " VALUES "
+				+ sqlValues;
+		query = String.format(query, db);
+		return query;
+	}
+
+	private void insertUsers(HashMap<String, ByteIterator> values, String db) {
+		System.out.println("inserting users");
 		String fields = "(";
 		String sqlValues = "(";
 		int fieldCounter = 0;
@@ -218,10 +400,12 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		}
 		fields += ",NO_PEND_REQ,FRND_CNT,RSRC_CNT)";
 		sqlValues += ",?,?,?)";
-		String query = "INSERT into test.USERS " + fields + " VALUES "
+		String query = "INSERT into %s.USERS " + fields + " VALUES "
 				+ sqlValues;
 
-		// System.out.println(query);
+		query = String.format(query, db);
+
+		System.out.println(query);
 
 		PreparedStatement preparedStatement;
 		try {
@@ -239,11 +423,10 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 			// System.out.println(cnt + " ");
 			int rs = preparedStatement.executeUpdate();
+			preparedStatement.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-
-		return 0;
 	}
 
 	private void setValue(String key, HashMap<String, String> usersMaps,
@@ -271,6 +454,9 @@ public class DB2Client extends DB implements DB2ClientConstants {
 				preparedStatement.setTimestamp(cnt, null);
 				// System.out.println(key);
 				// System.out.println("NULL");
+			} else if ("FRND_CNT".equals(key) || "NO_PEND_REQ".equals(key)
+					|| "RSRC_CNT".equals(key)) {
+				preparedStatement.setInt(cnt, 0);
 			} else {
 				String r = v.substring(0, Math.min(199, v.length()));
 				preparedStatement.setString(cnt, r);
@@ -278,20 +464,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 				// System.out.println(r);
 			}
 		}
-	}
-
-	private String getValue(String key, HashMap<String, String> usersMaps) {
-		if (!usersMaps.containsKey(key)) {
-			return "'yo'";
-		}
-		key = usersMaps.get(key);
-		if ("jndate".equals(key)) {
-			return "current timestamp";
-		}
-		if ("lvdate".equals(key)) {
-			return "NULL";
-		}
-		return "'yo'";
 	}
 
 	private String getKey(String key, HashMap<String, String> usersMaps) {
@@ -380,8 +552,99 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		// TODO Auto-generated method stub
-		return new HashMap<String, String>();
+		HashMap<String, String> stats = new HashMap<String, String>();
+		Statement st = null;
+		String query = "";
+		try {
+			st = conn.createStatement();
+			// get user count
+			getUserCount(stats, st);
+			// get user offset
+			String offset = getUserOffset(st);
+			// get resources per user
+			getResourceCountPerUser(stats, st, offset);
+			// get number of friends per user
+			getFriendCountPerUser(stats, st, offset);
+			getPendingFriendRequestsPerUser(stats, st, offset);
+		} catch (SQLException sx) {
+			sx.printStackTrace(System.out);
+		} finally {
+			try {
+				if (st != null)
+					st.close();
+			} catch (SQLException e) {
+				e.printStackTrace(System.out);
+			}
+		}
+		return stats;
 	}
 
+	private void getPendingFriendRequestsPerUser(HashMap<String, String> stats,
+			Statement st, String offset) throws SQLException {
+		String query;
+		query = String.format("select NO_PEND_REQ from %s.users where uid=%s",
+				dbname, Integer.parseInt(offset));
+		ResultSet r2 = st.executeQuery(query);
+		if (r2.next()) {
+			stats.put("avgpendingperuser", r2.getString(1));
+		} else
+			stats.put("avgpendingperuser", "0");
+		if (r2 != null)
+			r2.close();
+	}
+
+	private void getFriendCountPerUser(HashMap<String, String> stats,
+			Statement st, String offset) throws SQLException {
+		String query;
+		query = String.format("select FRND_CNT from %s.users where uid=%s",
+				dbname, Integer.parseInt(offset));
+		ResultSet r2 = st.executeQuery(query);
+		if (r2.next()) {
+			stats.put("avgfriendsperuser", r2.getString(1));
+		} else
+			stats.put("avgfriendsperuser", "0");
+		if (r2 != null)
+			r2.close();
+	}
+
+	private void getResourceCountPerUser(HashMap<String, String> stats,
+			Statement st, String offset) throws SQLException {
+		String query;
+		query = String.format("SELECT RSRC_CNT from %s.users where uid=%s",
+				dbname, Integer.parseInt(offset));
+		ResultSet r2 = st.executeQuery(query);
+		if (r2.next()) {
+			stats.put("resourcesperuser", r2.getString(1));
+		} else {
+			stats.put("resourcesperuser", "0");
+		}
+		if (r2 != null)
+			r2.close();
+	}
+
+	private String getUserOffset(Statement st) throws SQLException {
+		String query;
+		query = String.format("SELECT min(uid) from %s.users", dbname);
+		ResultSet r2 = st.executeQuery(query);
+		String offset = "0";
+		if (r2.next()) {
+			offset = r2.getString(1);
+		}
+		return offset;
+	}
+
+	private ResultSet getUserCount(HashMap<String, String> stats, Statement st)
+			throws SQLException {
+		ResultSet rs;
+		String query;
+		query = String.format("SELECT count(*) from %s.users", dbname);
+		rs = st.executeQuery(query);
+		if (rs.next()) {
+			stats.put("usercount", rs.getString(1));
+		} else
+			stats.put("usercount", "0"); // sth is wrong - schema is missing
+		if (rs != null)
+			rs.close();
+		return rs;
+	}
 }
