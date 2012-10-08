@@ -117,11 +117,19 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					+ "JNDATE TIMESTAMP," + "LVDATE TIMESTAMP,"
 					+ "ADDR varchar(200)," + "EMAIL varchar(100),"
 					+ "TEL VARCHAR(10)," + "NO_PEND_REQ int DEFAULT 0,"
+					+ "NO_REQ_REJECT int DEFAULT 0,"
 					+ "FRND_CNT int DEFAULT 0," + "RSRC_CNT int,"
 					+ "PRIMARY KEY(UID))";
 
 			dropTable(selectStatement, db, "USERS");
 			createTable(stmt, db, "USERS", userTableSql);
+
+			dropTable(selectStatement, db, "PENDING_FRIENDSHIP");
+			createTable(
+					stmt,
+					db,
+					"PENDING_FRIENDSHIP",
+					"CREATE TABLE %s.PENDING_FRIENDSHIP(USERID1 int NOT NULL, USERID2 int NOT NULL,PRIMARY KEY(USERID1, USERID2))");
 
 			dropTable(selectStatement, db, "FRIENDSHIP");
 			createTable(
@@ -200,18 +208,37 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 		String updateFriendCountSql = String
 				.format(
-						"update %s.USERS set FRND_CNT = (select FRND_CNT + 1 from %s.Users where UID = ?) where UID=?",
-						dbname, dbname);
+						"update %s.USERS "
+								+ "set FRND_CNT = (select FRND_CNT + 1 from %s.Users where UID = ?), "
+								+ "NO_PEND_REQ = (select NO_PEND_REQ - ? from %s.Users where UID = ?) "
+								+ "where UID=?", dbname, dbname, dbname);
 
-		String query = String.format(
+		String insertFriendshipQuery = String.format(
 				"Insert into %s.FRIENDSHIP(USERID1, USERID2) VALUES(?,?)",
 				dbname);
+
+		String deletePendingFriendshipQuery1 = String
+				.format(
+						"delete from %s.PENDING_FRIENDSHIP where userid1 = ? and userid2 = ?",
+						dbname);
+
+		HashMap<Integer, Integer> deletedRecordCount = new HashMap<Integer, Integer>();
+
 		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
 		try {
-			statements.add(insertFriends(friendid1, friendid2, query));
-			statements.add(insertFriends(friendid2, friendid1, query));
-			statements.add(updateFriendCount(friendid1, updateFriendCountSql));
-			statements.add(updateFriendCount(friendid2, updateFriendCountSql));
+			deletePendingFriendshipRequests(friendid1, friendid2,
+					deletePendingFriendshipQuery1, deletedRecordCount,
+					statements);
+
+			deletePendingFriendshipRequests(friendid2, friendid1,
+					deletePendingFriendshipQuery1, deletedRecordCount,
+					statements);
+
+			insertFriendshipRecord(friendid1, friendid2, insertFriendshipQuery,
+					statements);
+
+			updateFriendShipRecord(friendid1, friendid2, updateFriendCountSql,
+					statements, deletedRecordCount);
 			transactionlConnection.commit();
 		} catch (Exception e) {
 			try {
@@ -230,6 +257,56 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			}
 		}
 		return 0;
+	}
+
+	private void deletePendingFriendshipRequests(int friendid1, int friendid2,
+			String deletePendingFriendshipQuery1,
+			HashMap<Integer, Integer> deletedRecordCount,
+			ArrayList<PreparedStatement> statements) throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection
+				.prepareStatement(deletePendingFriendshipQuery1);
+		preparedStatement.setInt(1, friendid1);
+		preparedStatement.setInt(2, friendid2);
+		int r = preparedStatement.executeUpdate();
+		deletedRecordCount.put(friendid1, r);
+		statements.add(preparedStatement);
+	}
+
+	private void updateFriendShipRecord(int friendid1, int friendid2,
+			String updateFriendCountSql,
+			ArrayList<PreparedStatement> statements,
+			HashMap<Integer, Integer> deletedRecordCount) throws SQLException {
+		statements.add(updateFriendCount(friendid1, updateFriendCountSql,
+				deletedRecordCount.get(friendid1)));
+		statements.add(updateFriendCount(friendid2, updateFriendCountSql,
+				deletedRecordCount.get(friendid2)));
+	}
+
+	private void updateFriendShipRecord(int friendid1, int friendid2,
+			String updateFriendCountSql, ArrayList<PreparedStatement> statements)
+			throws SQLException {
+		statements.add(updateFriendCount(friendid1, updateFriendCountSql));
+		statements.add(updateFriendCount(friendid2, updateFriendCountSql));
+	}
+
+	private void insertFriendshipRecord(int friendid1, int friendid2,
+			String query, ArrayList<PreparedStatement> statements)
+			throws SQLException {
+		statements.add(insertFriends(friendid1, friendid2, query));
+		statements.add(insertFriends(friendid2, friendid1, query));
+	}
+
+	private PreparedStatement updateFriendCount(int friendid, String query,
+			Integer count) throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection.prepareStatement(query);
+		preparedStatement.setInt(1, friendid);
+		preparedStatement.setInt(2, count);
+		preparedStatement.setInt(3, friendid);
+		preparedStatement.setInt(4, friendid);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
 	}
 
 	private PreparedStatement updateFriendCount(int friendid, String query)
@@ -253,9 +330,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	}
 
 	@Override
-	public int acceptFriend(int inviterID, int inviteeID) {
-		// TODO Auto-generated method stub
-		return 0;
+	public int acceptFriend(int friendid1, int friendid2) {
+		return CreateFriendship(friendid1, friendid2);
 	}
 
 	@Override
@@ -268,8 +344,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	public int insertEntity(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
-		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
-
 		// System.out.println(entitySet);
 
 		if (entitySet.equals("users")) {
@@ -474,8 +548,46 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	}
 
 	@Override
-	public int inviteFriend(int inviterID, int inviteeID) {
-		// TODO Auto-generated method stub
+	public int inviteFriend(int friendid1, int friendid2) {
+		System.out.println("create pending friendship " + friendid1 + " "
+				+ friendid2);
+
+		String updateFriendCountSql = String
+				.format(
+						"update %s.USERS set "
+								+ "NO_PEND_REQ = (select NO_PEND_REQ + 1 from %s.Users where UID = ?) "
+								+ "where UID=?", dbname, dbname);
+
+		String insertFriendshipQuery = String
+				.format(
+						"Insert into %s.PENDING_FRIENDSHIP(USERID1, USERID2) VALUES(?,?)",
+						dbname);
+
+		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
+		try {
+			insertFriendshipRecord(friendid1, friendid2, insertFriendshipQuery,
+					statements);
+
+			updateFriendShipRecord(friendid1, friendid2, updateFriendCountSql,
+					statements);
+
+			transactionlConnection.commit();
+		} catch (Exception e) {
+			try {
+				transactionlConnection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			return 1;
+		} finally {
+			for (PreparedStatement preparedStatement : statements) {
+				try {
+					preparedStatement.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 		return 0;
 	}
 
@@ -509,9 +621,94 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	}
 
 	@Override
-	public int rejectFriend(int inviterID, int inviteeID) {
-		// TODO Auto-generated method stub
+	public int rejectFriend(int friendid1, int friendid2) {
+		System.out.println("reject pending friendship " + friendid1 + " "
+				+ friendid2);
+
+		String decreasePendingRequestsSql = String
+				.format(
+						"update %s.USERS set "
+								+ "NO_PEND_REQ = (select NO_PEND_REQ - 1 from %s.Users where UID = ?) "
+								+ "where UID=?", dbname, dbname);
+
+		String increaseNumberOfRejectsSql = String
+				.format(
+						"update %s.USERS set "
+								+ "NO_PEND_REQ = (select NO_PEN_REQ - 1 from %s.Users where UID = ?), "
+								+ "NO_REQ_REJECT = (select NO_REQ_REJECT + 1 from %s.Users where UID = ?) "
+								+ "where UID=?", dbname, dbname, dbname);
+
+		String deletePendingFriendshipQuery = String
+				.format(
+						"delete from %s.PENDING_FRIENDSHIP(USERID1, USERID2) where userid1=? and userid2=?",
+						dbname);
+
+		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
+		try {
+			statements.add(deletePendingFriendship(friendid1, friendid2,
+					deletePendingFriendshipQuery));
+			statements.add(deletePendingFriendship(friendid2, friendid1,
+					deletePendingFriendshipQuery));
+
+			statements.add(decreasePendingFriendshipCount(friendid1,
+					decreasePendingRequestsSql));
+
+			statements.add(increaseRejectionCount(friendid2,
+					increaseNumberOfRejectsSql));
+
+			transactionlConnection.commit();
+		} catch (Exception e) {
+			try {
+				transactionlConnection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			return 1;
+		} finally {
+			for (PreparedStatement preparedStatement : statements) {
+				try {
+					preparedStatement.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 		return 0;
+	}
+
+	private PreparedStatement increaseRejectionCount(int friendid2,
+			String increaseNumberOfRejectsSql) throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection
+				.prepareStatement(increaseNumberOfRejectsSql);
+		preparedStatement.setInt(1, friendid2);
+		preparedStatement.setInt(2, friendid2);
+		preparedStatement.setInt(3, friendid2);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
+	}
+
+	private PreparedStatement decreasePendingFriendshipCount(int friendid1,
+			String decreasePendingRequestsSql) throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection
+				.prepareStatement(decreasePendingRequestsSql);
+		preparedStatement.setInt(1, friendid1);
+		preparedStatement.setInt(2, friendid1);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
+	}
+
+	private PreparedStatement deletePendingFriendship(int friendid1,
+			int friendid2, String deletePendingFriendshipQuery)
+			throws SQLException {
+		PreparedStatement preparedStatement;
+		preparedStatement = transactionlConnection
+				.prepareStatement(deletePendingFriendshipQuery);
+		preparedStatement.setInt(1, friendid1);
+		preparedStatement.setInt(2, friendid2);
+		preparedStatement.executeUpdate();
+		return preparedStatement;
 	}
 
 	@Override
