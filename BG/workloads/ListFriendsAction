@@ -1,5 +1,12 @@
-operationcount=0
+operationcount=100
 workload=edu.usc.bg.workloads.CoreWorkload
+
+usercount=100
+useroffset=0
+resourcecountperuser=10
+friendcountperuser=10
+confperc=1
+manipulationcountperresource=0
 
 #user ativities
 BrowseSelfProfileSession=0

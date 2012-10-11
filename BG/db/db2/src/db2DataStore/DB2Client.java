@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
@@ -21,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
+import com.yahoo.ycsb.StringByteIterator;
 
 import db2DataStore.DB2ClientConstants;
 
@@ -595,7 +598,57 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	public int listFriends(int requesterID, int profileOwnerID,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
-		// TODO Auto-generated method stub
+
+		String query = String
+				.format(
+						"select u.* from %s.users u, %s.friendship f where f.userid1 = ? and f.userid2 = u.uid",
+						dbname, dbname);
+
+		PreparedStatement statement;
+		ResultSet rs = null;
+		boolean error = false;
+		try {
+			statement = conn.prepareStatement(query);
+			statement.setInt(1, profileOwnerID);
+			rs = statement.executeQuery();
+			int r = populate(result, rs);
+			if (r > 0)
+				error = true;
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (null != rs)
+					rs.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (error)
+			return 1;
+		return 0;
+	}
+
+	private int populate(Vector<HashMap<String, ByteIterator>> result,
+			ResultSet rs) {
+		ResultSetMetaData md;
+		try {
+			md = rs.getMetaData();
+			int col = md.getColumnCount();
+			while (rs.next()) {
+				HashMap<String, ByteIterator> map = new HashMap<String, ByteIterator>();
+				for (int i = 1; i <= col; i++) {
+					String col_name = md.getColumnName(i);
+					String value = rs.getString(col_name);
+					map.put(col_name, new StringByteIterator(value));
+				}
+				result.add(map);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
 		return 0;
 	}
 
@@ -713,8 +766,62 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
+		String deleteQuery = String.format(
+				"delete from %s.FRIENDSHIP where userid1 = ? and userid2 = ?",
+				dbname);
+
+		String updateFriendCountSql = String
+				.format(
+						"update %s.USERS "
+								+ "set FRND_CNT = (select FRND_CNT - 1 from %s.Users where UID = ?) "
+								+ "where UID=?", dbname, dbname);
+
+		List<Statement> statements = new ArrayList<Statement>();
+		try {
+			deleteFriends(statements, deleteQuery, friendid1, friendid2);
+			deleteFriends(statements, deleteQuery, friendid2, friendid1);
+			updateFriendCount(statements, updateFriendCountSql, friendid1);
+			updateFriendCount(statements, updateFriendCountSql, friendid2);
+			transactionlConnection.commit();
+		} catch (SQLException e) {
+			try {
+				transactionlConnection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+			e.printStackTrace();
+			return 1;
+		} finally {
+			for (Statement statement : statements) {
+				try {
+					statement.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
 		return 0;
+	}
+
+	private void updateFriendCount(List<Statement> statements,
+			String updateFriendCountSql, int friendid1) throws SQLException {
+		PreparedStatement statement = transactionlConnection
+				.prepareStatement(updateFriendCountSql);
+		statement.setInt(1, friendid1);
+		statement.setInt(2, friendid1);
+		statement.executeUpdate();
+		statements.add(statement);
+	}
+
+	private void deleteFriends(List<Statement> statements, String deleteQuery,
+			int friendid1, int friendid2) throws SQLException {
+		PreparedStatement statement = transactionlConnection
+				.prepareStatement(deleteQuery);
+		statement.setInt(1, friendid1);
+		statement.setInt(2, friendid2);
+		statement.executeUpdate();
+		statements.add(statement);
 	}
 
 	@Override
@@ -726,9 +833,37 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public int viewFriendReq(int profileOwnerID,
-			Vector<HashMap<String, ByteIterator>> results, boolean insertImage,
+			Vector<HashMap<String, ByteIterator>> result, boolean insertImage,
 			boolean testMode) {
-		// TODO Auto-generated method stub
+
+		String query = String
+				.format(
+						"select u.* from %s.users u, %s.PENDING_FRIENDSHIP f where f.userid1 = ? and f.userid2 = u.uid",
+						dbname, dbname);
+
+		PreparedStatement statement;
+		ResultSet rs = null;
+		boolean error = false;
+		try {
+			statement = conn.prepareStatement(query);
+			statement.setInt(1, profileOwnerID);
+			rs = statement.executeQuery();
+			int r = populate(result, rs);
+			if (r > 0)
+				error = true;
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (null != rs)
+					rs.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (error)
+			return 1;
 		return 0;
 	}
 
@@ -736,7 +871,59 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	public int viewProfile(int requesterID, int profileOwnerID,
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
-		// TODO Auto-generated method stub
+		// "friendcount", "resourcecount" and "pendingcount"
+		String query = String
+				.format(
+						"select FRND_CNT, RSRC_COUNT, NO_PEND_REQ from %s.users where uid = ?",
+						dbname);
+
+		try {
+			PreparedStatement statement = conn.prepareStatement(query);
+			statement.setInt(1, profileOwnerID);
+			ResultSet rs = statement.executeQuery();
+			int v = populateUserRecord(result, rs);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		if (requesterID != profileOwnerID) {
+			if (result.containsKey("pendingcount"))
+				result.remove("pendingcount");
+		}
+		return 0;
+	}
+
+	private int populateUserRecord(HashMap<String, ByteIterator> result,
+			ResultSet rs) {
+		ResultSetMetaData md;
+		try {
+			md = rs.getMetaData();
+			int col = md.getColumnCount();
+			while (rs.next()) {
+				// "friendcount", "resourcecount" and "pendingcount"
+				for (int i = 1; i <= col; i++) {
+					String col_name = md.getColumnName(i);
+					String value = rs.getString(col_name);
+					if (col_name.equals("FRND_CNT")) {
+						result
+								.put("friendcount", new StringByteIterator(
+										value));
+					}
+					if (col_name.equals("NO_PEND_REQ")) {
+						result.put("pendingcount",
+								new StringByteIterator(value));
+					}
+					if (col_name.equals("RSRC_CNT")) {
+						result.put("resourcecount", new StringByteIterator(
+								value));
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
+
 		return 0;
 	}
 

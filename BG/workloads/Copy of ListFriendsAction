@@ -1,12 +1,5 @@
-operationcount=100
+operationcount=0
 workload=edu.usc.bg.workloads.CoreWorkload
-
-usercount=100
-useroffset=0
-resourcecountperuser=10
-friendcountperuser=10
-confperc=1
-manipulationcountperresource=0
 
 #user ativities
 BrowseSelfProfileSession=0
@@ -19,8 +12,8 @@ ThawFriendshipSession=0
 
 
 #user actions
-ViewProfileAction=1
-ListFriendsAction=0
+ViewProfileAction=0
+ListFriendsAction=1
 ViewFriendReqAction=0
 InviteFriendAction=0
 AcceptFriendReqAction=0
