@@ -7,10 +7,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -24,8 +21,6 @@ import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.StringByteIterator;
-
-import db2DataStore.DB2ClientConstants;
 
 public class DB2Client extends DB implements DB2ClientConstants {
 
@@ -146,7 +141,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					stmt,
 					db,
 					"MANIPULATION",
-					"CREATE TABLE %s.MANIPULATION(MID int, CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(200), TYPE VARCHAR(200), CONTENT VARCHAR(200))");
+					"CREATE TABLE %s.MANIPULATION(MID int NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1), CREATORID int, RID int, MODIFIERID int, MTIME TIMESTAMP, TYPE CHAR(1), CONTENT VARCHAR(200))");
 
 			dropTable(selectStatement, db, "RESOURCES");
 
@@ -641,7 +636,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
 					String value = rs.getString(col_name);
-					map.put(col_name, new StringByteIterator(value));
+					map.put(col_name.toLowerCase(), new StringByteIterator(
+							value));
 				}
 				result.add(map);
 			}
@@ -656,6 +652,29 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID, HashMap<String, ByteIterator> values) {
 		// TODO Auto-generated method stub
+		// "CREATE TABLE %s.MANIPULATION(MID int NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1), CREATORID int, RID int, MODIFIERID int, MTIME TIMESTAMP, TYPE CHAR(1), CONTENT VARCHAR(200))");
+
+		String insertQuery = String
+				.format(
+						"insert into %s.MANIPULATION(CREATORID,RID,MODIFIERID,MTIME,TYPE,CONTENT) VALUES(?,?,?,CURRENT TIMESTAMP,'C',?)",
+						dbname);
+		try {
+			PreparedStatement p = conn.prepareStatement(insertQuery);
+			p.setInt(1, profileOwnerID);
+			p.setInt(2, resourceID);
+			p.setInt(3, commentCreatorID);
+			String comment = values.get("content").toString();
+			if (comment.length() == 0)
+				comment = "test comment";
+			else
+				comment = comment.substring(0, Math.min(comment.length(), 200));
+			p.setString(4, comment);
+			p.executeUpdate();
+			p.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
 		return 0;
 	}
 
@@ -827,7 +846,21 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	@Override
 	public int viewCommentOnResource(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
+
+		String query = String.format(
+				"select * from %s.Manipulation where rid = ? and type = 'C'",
+				dbname);
+
+		try {
+			PreparedStatement statement = conn.prepareStatement(query);
+			statement.setInt(1, resourceID);
+			ResultSet rs = statement.executeQuery();
+			int v = populateTopKUserRecord(result, rs);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
+
 		return 0;
 	}
 
@@ -874,7 +907,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		// "friendcount", "resourcecount" and "pendingcount"
 		String query = String
 				.format(
-						"select FRND_CNT, RSRC_COUNT, NO_PEND_REQ from %s.users where uid = ?",
+						"select FRND_CNT, RSRC_CNT, NO_PEND_REQ from %s.users where uid = ?",
 						dbname);
 
 		try {
@@ -930,7 +963,43 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	@Override
 	public int viewTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
+		String query = String
+				.format(
+						"select * from %s.resources where ( creatorid = %s or walluserid = %s ) order by RID DESC FETCH FIRST %s ROWS ONLY",
+						dbname, profileOwnerID, profileOwnerID, k);
+
+		try {
+			Statement statement = conn.createStatement();
+			ResultSet rs = statement.executeQuery(query);
+			int v = populateTopKUserRecord(result, rs);
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
+		return 0;
+	}
+
+	private int populateTopKUserRecord(
+			Vector<HashMap<String, ByteIterator>> result, ResultSet rs) {
+		ResultSetMetaData md;
+		try {
+			md = rs.getMetaData();
+			int col = md.getColumnCount();
+			while (rs.next()) {
+				HashMap<String, ByteIterator> rMap = new HashMap<String, ByteIterator>();
+				// "friendcount", "resourcecount" and "pendingcount"
+				for (int i = 1; i <= col; i++) {
+					String col_name = md.getColumnName(i);
+					String value = rs.getString(col_name);
+					rMap.put(col_name.toLowerCase(), new StringByteIterator(
+							value));
+				}
+				result.add(rMap);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return 1;
+		}
 		return 0;
 	}
 

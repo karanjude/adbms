@@ -1,5 +1,12 @@
-operationcount=0
+operationcount=100
 workload=edu.usc.bg.workloads.CoreWorkload
+
+usercount=100
+useroffset=0
+resourcecountperuser=10
+friendcountperuser=10
+confperc=1
+manipulationcountperresource=0
 
 #user ativities
 BrowseSelfProfileSession=0
@@ -19,9 +26,9 @@ InviteFriendAction=0
 AcceptFriendReqAction=0
 RejectFriendReqAction=0
 ThawFriendshipAction=0
-ViewTopKResourcesAction=0
+ViewTopKResourcesAction=.1
 ViewCommentsOnResourceAction=0
-PostCommentOnResourceAction=1
+PostCommentOnResourceAction=.9
 
 requestdistribution=dzipfian
 zipfianmean=0.27

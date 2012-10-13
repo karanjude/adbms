@@ -6,7 +6,7 @@ useroffset=0
 resourcecountperuser=10
 friendcountperuser=10
 confperc=1
-manipulationcountperresource=5
+manipulationcountperresource=0
 
 #user ativities
 BrowseSelfProfileSession=0
@@ -17,17 +17,18 @@ AcceptFriendReqSession=0
 RejectFriendReqSession=0
 ThawFriendshipSession=0
 
+
 #user actions
-ViewProfileAction=0.23
-ListFriendsAction=0.125
-ViewFriendReqAction=0.125
-InviteFriendAction=0.01
-AcceptFriendReqAction=0.01
-RejectFriendReqAction=0.01
-ThawFriendshipAction=0.01
-ViewTopKResourcesAction=0.23
-ViewCommentsOnResourceAction=.15
-PostCommentOnResourceAction=0.1
+ViewProfileAction=0
+ListFriendsAction=0
+ViewFriendReqAction=0
+InviteFriendAction=0
+AcceptFriendReqAction=0
+RejectFriendReqAction=0
+ThawFriendshipAction=0
+ViewTopKResourcesAction=1
+ViewCommentsOnResourceAction=0
+PostCommentOnResourceAction=0
 
 requestdistribution=dzipfian
 zipfianmean=0.27

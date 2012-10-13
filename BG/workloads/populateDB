@@ -6,7 +6,7 @@ useroffset=0
 resourcecountperuser=10
 friendcountperuser=10
 confperc=1
-manipulationcountperresource=0
+manipulationcountperresource=2
 
 userworkload=edu.usc.bg.workloads.UserWorkload
 friendshipworkload=edu.usc.bg.workloads.FriendshipWorkload
