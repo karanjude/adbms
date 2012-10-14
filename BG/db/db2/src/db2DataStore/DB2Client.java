@@ -1,5 +1,10 @@
 package db2DataStore;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -18,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.yahoo.ycsb.ByteIterator;
+import com.yahoo.ycsb.Client;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.StringByteIterator;
@@ -35,6 +41,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	private ConcurrentHashMap<Integer, PreparedStatement> newCachedStatements;
 	private int count = 0;
 	private String dbname;
+	private String imagepath;
 
 	@Override
 	public void init() throws DBException {
@@ -49,6 +56,9 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		String driver = props.getProperty(DRIVER_CLASS, DEFAULT_DRIVER);
 		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
 		dbname = extractDBFromUrl(url);
+		imagepath = props.getProperty(Client.IMAGE_PATH_PROPERTY,
+				Client.IMAGE_PATH_PROPERTY_DEFAULT);
+
 		try {
 			if (driver != null) {
 				Class.forName(driver);
@@ -116,8 +126,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					+ "ADDR varchar(200)," + "EMAIL varchar(100),"
 					+ "TEL VARCHAR(10)," + "NO_PEND_REQ int DEFAULT 0,"
 					+ "NO_REQ_REJECT int DEFAULT 0,"
-					+ "FRND_CNT int DEFAULT 0," + "RSRC_CNT int,"
-					+ "PRIMARY KEY(UID))";
+					+ "FRND_CNT int DEFAULT 0," + "RSRC_CNT int," + "PIC BLOB,"
+					+ "TPIC BLOB," + "PRIMARY KEY(UID))";
 
 			dropTable(selectStatement, db, "USERS");
 			createTable(stmt, db, "USERS", userTableSql);
@@ -154,6 +164,42 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					+ "PRIMARY KEY(RID,CREATORID,WALLUSERID))";
 
 			createTable(stmt, db, "RESOURCES", resourceCreateQuery);
+
+			String createFriendshipProcedure = "CREATE PROCEDURE %s.CreateFriendship (IN USERID1 int, IN USERID2 int) "
+					+ "BEGIN "
+					+ "	INSERT INTO %s.FRIENDSHIP(USERID1, USERID2) VALUES(USERID1, USERID2); "
+					+ "	INSERT INTO %s.FRIENDSHIP(USERID1, USERID2) VALUES(USERID2, USERID1); "
+					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID1)	WHERE UID = USERID1; "
+					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID2)	WHERE UID = USERID2; "
+					+ " END ";
+
+			dropProcedure(stmt, db, "CreateFriendship");
+			insertStoredProcedure(stmt, db, "CreateFriendhip", String.format(
+					createFriendshipProcedure, db, db, db, db, db, db, db));
+
+			String createPendingFriendshipProcedure = "CREATE PROCEDURE %s.CreatePendingFriendship (IN USERID1 int, IN USERID2 int) "
+					+ "BEGIN "
+					+ "	INSERT INTO %s.PENDING_FRIENDSHIP(USERID1, USERID2) VALUES(USERID1, USERID2); "
+					+ "	INSERT INTO %s.PENDING_FRIENDSHIP(USERID1, USERID2) VALUES(USERID2, USERID1); "
+					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID1)	WHERE UID = USERID1; "
+					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID2)	WHERE UID = USERID2; "
+					+ " END ";
+
+			dropProcedure(stmt, db, "CreatePendingFriendship");
+			insertStoredProcedure(stmt, db, "CreatePendingFriendhip", String
+					.format(createPendingFriendshipProcedure, db, db, db, db,
+							db, db, db));
+
+			String resourceQuery = "CREATE PROCEDURE %s.InsertResource (IN CID int, IN WID int, TYPE VARCHAR(200), BODY VARCHAR(200), DOC VARCHAR(200)) "
+					+ " BEGIN "
+					+ " INSERT INTO %s.RESOURCES(CREATORID, WALLUSERID, TYPE, BODY, DOC) VALUES(CID, WID, TYPE, BODY, DOC);"
+					+ " UPDATE %s.USERS SET RSRC_CNT = (SELECT RSRC_CNT + 1 FROM %s.USERS WHERE UID = CID) WHERE UID = CID;"
+					+ " END";
+
+			dropProcedure(stmt, db, "InsertResource");
+			insertStoredProcedure(stmt, db, "InsertResource", String.format(
+					resourceQuery, db, db, db, db));
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
@@ -165,6 +211,31 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					e.printStackTrace(System.out);
 				}
 		}
+	}
+
+	private void insertStoredProcedure(Statement stmt, String db,
+			String procedure, String sql) {
+		try {
+			System.out.println(sql);
+			stmt.executeUpdate(sql);
+			System.out.println(String.format("%s.%s CREATED", db, procedure));
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void dropProcedure(Statement stmt, String db, String procedure) {
+		String query = String.format("DROP PROCEDURE %s.%s", db.toUpperCase(),
+				procedure);
+		try {
+			stmt.executeUpdate(query);
+			System.out.println(String.format("DROPPED PROCEDURE %s.%s", db,
+					procedure));
+		} catch (SQLException e) {
+			System.out.println(String.format("%s.%s PROCEDURE does not exist",
+					db, procedure));
+		}
+
 	}
 
 	private String extractDBFromUrl(String url) {
@@ -198,62 +269,27 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
-		System.out.println("create friendship " + friendid1 + " " + friendid2);
-
-		// update USERS set FRND_CNT = (select FRND_CNT + 1 from USERS where
-		// UID
-		// = A) where UID
-
-		String updateFriendCountSql = String
-				.format(
-						"update %s.USERS "
-								+ "set FRND_CNT = (select FRND_CNT + 1 from %s.Users where UID = ?), "
-								+ "NO_PEND_REQ = (select NO_PEND_REQ - ? from %s.Users where UID = ?) "
-								+ "where UID=?", dbname, dbname, dbname);
-
-		String insertFriendshipQuery = String.format(
-				"Insert into %s.FRIENDSHIP(USERID1, USERID2) VALUES(?,?)",
-				dbname);
-
-		String deletePendingFriendshipQuery1 = String
-				.format(
-						"delete from %s.PENDING_FRIENDSHIP where userid1 = ? and userid2 = ?",
-						dbname);
-
-		HashMap<Integer, Integer> deletedRecordCount = new HashMap<Integer, Integer>();
-
-		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
+		long start = System.currentTimeMillis();
+		String call = String.format("CALL %s.CreateFriendship(?,?)", dbname);
+		java.sql.CallableStatement proc = null;
 		try {
-			deletePendingFriendshipRequests(friendid1, friendid2,
-					deletePendingFriendshipQuery1, deletedRecordCount,
-					statements);
-
-			deletePendingFriendshipRequests(friendid2, friendid1,
-					deletePendingFriendshipQuery1, deletedRecordCount,
-					statements);
-
-			insertFriendshipRecord(friendid1, friendid2, insertFriendshipQuery,
-					statements);
-
-			updateFriendShipRecord(friendid1, friendid2, updateFriendCountSql,
-					statements, deletedRecordCount);
-			transactionlConnection.commit();
-		} catch (Exception e) {
-			try {
-				transactionlConnection.rollback();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
-			return 1;
+			proc = conn.prepareCall(call);
+			proc.setInt(1, friendid1);
+			proc.setInt(2, friendid2);
+			proc.executeUpdate();
+		} catch (SQLException e2) {
+			e2.printStackTrace();
 		} finally {
-			for (PreparedStatement preparedStatement : statements) {
-				try {
-					preparedStatement.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+			try {
+				proc.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
 		}
+		long end = System.currentTimeMillis();
+		long diff = end - start;
+		System.out.println("CreateFriendShip " + friendid1 + " " + friendid2
+				+ " " + diff);
 		return 0;
 	}
 
@@ -345,7 +381,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		// System.out.println(entitySet);
 
 		if (entitySet.equals("users")) {
-			insertUsers(values, dbname);
+			insertUsers(values, dbname, insertImage, imageSize);
 		} else if (entitySet.equals("resources")) {
 			insertResources(values, dbname);
 		}
@@ -354,42 +390,41 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	}
 
 	private void insertResources(HashMap<String, ByteIterator> values, String db) {
-		System.out.println("inserting resources " + count++);
-		String query = insertResourceQuery(values, db);
-		// System.out.println(query);
-
-		Integer creatorId = Integer.parseInt(executeInsertResourceQuery(values,
-				query));
-
-		String updateFriendCountSql = String
-				.format(
-						"update %s.USERS set RSRC_CNT = (select RSRC_CNT + 1 from %s.Users where UID = ?) where UID=?",
-						dbname, dbname);
-
-		PreparedStatement preparedStatement = null;
+		long start = System.currentTimeMillis();
+		String call = String
+				.format("CALL %s.InsertResource(?,?,?,?,?)", dbname);
+		java.sql.CallableStatement proc = null;
+		int creatorid = 0;
 		try {
-			preparedStatement = transactionlConnection
-					.prepareStatement(updateFriendCountSql);
-			preparedStatement.setInt(1, creatorId);
-			preparedStatement.setInt(2, creatorId);
-			preparedStatement.executeUpdate();
-			transactionlConnection.commit();
-		} catch (SQLException e) {
-			try {
-				transactionlConnection.rollback();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
-			e.printStackTrace();
-		} finally {
-			if (null != preparedStatement) {
-				try {
-					preparedStatement.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
+			proc = conn.prepareCall(call);
+			int cnt = 1;
+			for (Entry<String, ByteIterator> entry : values.entrySet()) {
+				String key = entry.getKey();
+				String v = entry.getValue().toString();
+				if (key.equals("creatorid") || key.equals("walluserid")) {
+					if (key.equals("creatorid")) {
+						creatorid = Integer.parseInt(v);
+					}
+					proc.setInt(cnt, Integer.parseInt(v));
+				} else {
+					String r = v.substring(0, Math.min(190, v.length()));
+					proc.setString(cnt, r);
 				}
+				cnt++;
+			}
+			proc.executeUpdate();
+		} catch (SQLException e2) {
+			e2.printStackTrace();
+		} finally {
+			try {
+				proc.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
 		}
+		long end = System.currentTimeMillis();
+		long diff = end - start;
+		System.out.println("InsertResource " + creatorid + " " + diff);
 	}
 
 	private String executeInsertResourceQuery(
@@ -446,7 +481,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return query;
 	}
 
-	private void insertUsers(HashMap<String, ByteIterator> values, String db) {
+	private void insertUsers(HashMap<String, ByteIterator> values, String db,
+			boolean insertImage, int imageSize) {
 		System.out.println("inserting users");
 		String fields = "(";
 		String sqlValues = "(";
@@ -470,8 +506,17 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			}
 			fieldCounter++;
 		}
-		fields += ",NO_PEND_REQ,FRND_CNT,RSRC_CNT)";
-		sqlValues += ",?,?,?)";
+		fields += ",NO_PEND_REQ,FRND_CNT,RSRC_CNT";
+		if (insertImage) {
+			fields += ",PIC,TPIC";
+		}
+
+		fields += ")";
+		sqlValues += ",?,?,?";
+		if (insertImage) {
+			sqlValues += ",?,?";
+		}
+		sqlValues += ")";
 		String query = "INSERT into %s.USERS " + fields + " VALUES "
 				+ sqlValues;
 
@@ -491,6 +536,22 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			}
 			for (int i = 0; i < 3; i++) {
 				preparedStatement.setInt(cnt++, 0);
+			}
+			if (insertImage) {
+				File image = new File(imagepath + "userpic" + imageSize
+						+ ".bmp");
+				try {
+					FileInputStream fis = new FileInputStream(image);
+					preparedStatement.setBinaryStream(cnt++, (InputStream) fis,
+							(int) (image.length()));
+					File thumbimage = new File(imagepath + "userpic1.bmp");
+					FileInputStream fist;
+					fist = new FileInputStream(thumbimage);
+					preparedStatement.setBinaryStream(cnt++,
+							(InputStream) fist, (int) (thumbimage.length()));
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				}
 			}
 
 			// System.out.println(cnt + " ");
@@ -547,45 +608,28 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public int inviteFriend(int friendid1, int friendid2) {
-		System.out.println("create pending friendship " + friendid1 + " "
-				+ friendid2);
-
-		String updateFriendCountSql = String
-				.format(
-						"update %s.USERS set "
-								+ "NO_PEND_REQ = (select NO_PEND_REQ + 1 from %s.Users where UID = ?) "
-								+ "where UID=?", dbname, dbname);
-
-		String insertFriendshipQuery = String
-				.format(
-						"Insert into %s.PENDING_FRIENDSHIP(USERID1, USERID2) VALUES(?,?)",
-						dbname);
-
-		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
+		long start = System.currentTimeMillis();
+		String call = String.format("CALL %s.CreatePendingFriendship(?,?)",
+				dbname);
+		java.sql.CallableStatement proc = null;
 		try {
-			insertFriendshipRecord(friendid1, friendid2, insertFriendshipQuery,
-					statements);
-
-			updateFriendShipRecord(friendid1, friendid2, updateFriendCountSql,
-					statements);
-
-			transactionlConnection.commit();
-		} catch (Exception e) {
-			try {
-				transactionlConnection.rollback();
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			}
-			return 1;
+			proc = conn.prepareCall(call);
+			proc.setInt(1, friendid1);
+			proc.setInt(2, friendid2);
+			proc.executeUpdate();
+		} catch (SQLException e2) {
+			e2.printStackTrace();
 		} finally {
-			for (PreparedStatement preparedStatement : statements) {
-				try {
-					preparedStatement.close();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+			try {
+				proc.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
 		}
+		long end = System.currentTimeMillis();
+		long diff = end - start;
+		System.out.println("CreatePendingFriendShip " + friendid1 + " "
+				+ friendid2 + " " + diff);
 		return 0;
 	}
 
@@ -635,7 +679,16 @@ public class DB2Client extends DB implements DB2ClientConstants {
 				HashMap<String, ByteIterator> map = new HashMap<String, ByteIterator>();
 				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
-					String value = rs.getString(col_name);
+					String value = null;
+					if (col_name.equalsIgnoreCase("PIC")
+							|| col_name.equalsIgnoreCase("TPIC")) {
+						Blob aBlob = rs.getBlob(col_name);
+						byte[] allBytesInBlob = aBlob.getBytes(1, (int) aBlob
+								.length());
+						value = allBytesInBlob.toString();
+					} else {
+						value = rs.getString(col_name);
+					}
 					map.put(col_name.toLowerCase(), new StringByteIterator(
 							value));
 				}
@@ -651,8 +704,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	@Override
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID, HashMap<String, ByteIterator> values) {
-		// TODO Auto-generated method stub
-		// "CREATE TABLE %s.MANIPULATION(MID int NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1), CREATORID int, RID int, MODIFIERID int, MTIME TIMESTAMP, TYPE CHAR(1), CONTENT VARCHAR(200))");
+		System.out.println("Insert manipulation " + commentCreatorID);
 
 		String insertQuery = String
 				.format(
