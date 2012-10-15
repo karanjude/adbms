@@ -45,6 +45,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public void init() throws DBException {
+		System.out.println("Init started");
 		if (initialized) {
 			System.out.println("Client connection already initialized.");
 			return;
@@ -82,6 +83,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			throw new DBException(e);
 		}
 		initialized = true;
+		System.out.println("Init Done");
 	}
 
 	@Override
@@ -107,6 +109,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 	@Override
 	public void createSchema(Properties props) {
+		System.out.println("create schema called");
 		String url = props.getProperty(CONNECTION_URL, DEFAULT_PROP);
 
 		Statement stmt = null;
@@ -167,15 +170,22 @@ public class DB2Client extends DB implements DB2ClientConstants {
 
 			String createFriendshipProcedure = "CREATE PROCEDURE %s.CreateFriendship (IN USERID1 int, IN USERID2 int) "
 					+ "BEGIN "
+					+ " DELETE from %s.PENDING_FRIENDSHIP where USERID1 = USERID1 and USERID2 = USERID2;"
+					+ " DELETE from %s.PENDING_FRIENDSHIP where USERID1 = USERID2 and USERID2 = USERID1;"
 					+ "	INSERT INTO %s.FRIENDSHIP(USERID1, USERID2) VALUES(USERID1, USERID2); "
 					+ "	INSERT INTO %s.FRIENDSHIP(USERID1, USERID2) VALUES(USERID2, USERID1); "
-					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID1)	WHERE UID = USERID1; "
-					+ "	UPDATE %s.USERS SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID2)	WHERE UID = USERID2; "
+					+ "	UPDATE %s.USERS "
+					+ " SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID1),	"
+					+ "NO_PEND_REQ = (SELECT NO_PEND_REQ - 1 FROM %s.USERS WHERE UID = USERID1) WHERE UID = USERID1; "
+					+ "	UPDATE %s.USERS "
+					+ " SET FRND_CNT = (SELECT FRND_CNT + 1 FROM %s.USERS WHERE UID = USERID2), "
+					+ " NO_PEND_REQ = (SELECT NO_PEND_REQ - 1 FROM %s.USERS WHERE UID = USERID2) WHERE UID = USERID2; "
 					+ " END ";
 
 			dropProcedure(stmt, db, "CreateFriendship");
 			insertStoredProcedure(stmt, db, "CreateFriendhip", String.format(
-					createFriendshipProcedure, db, db, db, db, db, db, db));
+					createFriendshipProcedure, db, db, db, db, db, db, db, db,
+					db, db, db));
 
 			String createPendingFriendshipProcedure = "CREATE PROCEDURE %s.CreatePendingFriendship (IN USERID1 int, IN USERID2 int) "
 					+ "BEGIN "
@@ -199,6 +209,32 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			dropProcedure(stmt, db, "InsertResource");
 			insertStoredProcedure(stmt, db, "InsertResource", String.format(
 					resourceQuery, db, db, db, db));
+
+			String pndgFrndshpUid1Idx = "CREATE INDEX %s.PNDG_FRNDSHP_UID1_IDX ON %s.PENDING_FRIENDSHIP(USERID1)";
+			String pndgFrndshpUid2Idx = "CREATE INDEX %s.PNDG_FRNDSHP_UID2_IDX ON %s.PENDING_FRIENDSHIP(USERID2)";
+			String frndshpUid1Idx = "CREATE INDEX %s.FRNDSHP_UID1_IDX ON %s.FRIENDSHIP(USERID1)";
+			String frndshpUid2Idx = "CREATE INDEX %s.FRNDSHP_UID2_IDX ON %s.FRIENDSHIP(USERID2)";
+			String rsrcRidIdx = "CREATE INDEX %s.RSRC_RID_IDX ON %s.RESOURCES(RID)";
+
+			dropIndex(stmt, db, "PNDG_FRNDSHP_UID1_IDX");
+			insertIndex(stmt, db, "PNDG_FRNDSHP_UID1_IDX", String.format(
+					pndgFrndshpUid1Idx, db, db));
+
+			dropIndex(stmt, db, "PNDG_FRNDSHP_UID2_IDX");
+			insertIndex(stmt, db, "PNDG_FRNDSHP_UID2_IDX", String.format(
+					pndgFrndshpUid2Idx, db, db));
+
+			dropIndex(stmt, db, "FRNDSHP_UID2_IDX");
+			insertIndex(stmt, db, "FRNDSHP_UID2_IDX", String.format(
+					frndshpUid1Idx, db, db));
+
+			dropIndex(stmt, db, "FRNDSHP_UID1_IDX");
+			insertIndex(stmt, db, "FRNDSHP_UID1_IDX", String.format(
+					frndshpUid2Idx, db, db));
+
+			dropIndex(stmt, db, "RSRC_RID_IDX");
+			insertIndex(stmt, db, "RSRC_RID_IDX", String.format(rsrcRidIdx, db,
+					db));
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -224,6 +260,16 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		}
 	}
 
+	private void insertIndex(Statement stmt, String db, String index, String sql) {
+		try {
+			System.out.println(sql);
+			stmt.executeUpdate(sql);
+			System.out.println(String.format("%s.%s CREATED", db, index));
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private void dropProcedure(Statement stmt, String db, String procedure) {
 		String query = String.format("DROP PROCEDURE %s.%s", db.toUpperCase(),
 				procedure);
@@ -234,6 +280,19 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		} catch (SQLException e) {
 			System.out.println(String.format("%s.%s PROCEDURE does not exist",
 					db, procedure));
+		}
+
+	}
+
+	private void dropIndex(Statement stmt, String db, String index) {
+		String query = String.format("DROP INDEX %s.%s", db.toUpperCase(),
+				index);
+		try {
+			stmt.executeUpdate(query);
+			System.out.println(String.format("DROPPED INDEX %s.%s", db, index));
+		} catch (SQLException e) {
+			System.out.println(String.format("%s.%s INDEX does not exist", db,
+					index));
 		}
 
 	}
@@ -291,76 +350,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		System.out.println("CreateFriendShip " + friendid1 + " " + friendid2
 				+ " " + diff);
 		return 0;
-	}
-
-	private void deletePendingFriendshipRequests(int friendid1, int friendid2,
-			String deletePendingFriendshipQuery1,
-			HashMap<Integer, Integer> deletedRecordCount,
-			ArrayList<PreparedStatement> statements) throws SQLException {
-		PreparedStatement preparedStatement;
-		preparedStatement = transactionlConnection
-				.prepareStatement(deletePendingFriendshipQuery1);
-		preparedStatement.setInt(1, friendid1);
-		preparedStatement.setInt(2, friendid2);
-		int r = preparedStatement.executeUpdate();
-		deletedRecordCount.put(friendid1, r);
-		statements.add(preparedStatement);
-	}
-
-	private void updateFriendShipRecord(int friendid1, int friendid2,
-			String updateFriendCountSql,
-			ArrayList<PreparedStatement> statements,
-			HashMap<Integer, Integer> deletedRecordCount) throws SQLException {
-		statements.add(updateFriendCount(friendid1, updateFriendCountSql,
-				deletedRecordCount.get(friendid1)));
-		statements.add(updateFriendCount(friendid2, updateFriendCountSql,
-				deletedRecordCount.get(friendid2)));
-	}
-
-	private void updateFriendShipRecord(int friendid1, int friendid2,
-			String updateFriendCountSql, ArrayList<PreparedStatement> statements)
-			throws SQLException {
-		statements.add(updateFriendCount(friendid1, updateFriendCountSql));
-		statements.add(updateFriendCount(friendid2, updateFriendCountSql));
-	}
-
-	private void insertFriendshipRecord(int friendid1, int friendid2,
-			String query, ArrayList<PreparedStatement> statements)
-			throws SQLException {
-		statements.add(insertFriends(friendid1, friendid2, query));
-		statements.add(insertFriends(friendid2, friendid1, query));
-	}
-
-	private PreparedStatement updateFriendCount(int friendid, String query,
-			Integer count) throws SQLException {
-		PreparedStatement preparedStatement;
-		preparedStatement = transactionlConnection.prepareStatement(query);
-		preparedStatement.setInt(1, friendid);
-		preparedStatement.setInt(2, count);
-		preparedStatement.setInt(3, friendid);
-		preparedStatement.setInt(4, friendid);
-		preparedStatement.executeUpdate();
-		return preparedStatement;
-	}
-
-	private PreparedStatement updateFriendCount(int friendid, String query)
-			throws SQLException {
-		PreparedStatement preparedStatement;
-		preparedStatement = transactionlConnection.prepareStatement(query);
-		preparedStatement.setInt(1, friendid);
-		preparedStatement.setInt(2, friendid);
-		preparedStatement.executeUpdate();
-		return preparedStatement;
-	}
-
-	private PreparedStatement insertFriends(int friendid1, int friendid2,
-			String query) throws SQLException {
-		PreparedStatement preparedStatement;
-		preparedStatement = transactionlConnection.prepareStatement(query);
-		preparedStatement.setInt(1, friendid1);
-		preparedStatement.setInt(2, friendid2);
-		preparedStatement.executeUpdate();
-		return preparedStatement;
 	}
 
 	@Override
@@ -425,60 +414,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		long end = System.currentTimeMillis();
 		long diff = end - start;
 		System.out.println("InsertResource " + creatorid + " " + diff);
-	}
-
-	private String executeInsertResourceQuery(
-			HashMap<String, ByteIterator> values, String query) {
-		String creatorid = null;
-		PreparedStatement preparedStatement;
-
-		try {
-			preparedStatement = conn.prepareStatement(query);
-			int cnt = 1;
-			for (Entry<String, ByteIterator> entry : values.entrySet()) {
-				String key = entry.getKey();
-				String v = entry.getValue().toString();
-				if (key.equals("creatorid") || key.equals("walluserid")) {
-					if (key.equals("creatorid")) {
-						creatorid = v;
-					}
-					preparedStatement.setInt(cnt, Integer.parseInt(v));
-				} else {
-					String r = v.substring(0, Math.min(190, v.length()));
-					preparedStatement.setString(cnt, r);
-				}
-				cnt++;
-			}
-			int rs = preparedStatement.executeUpdate();
-			preparedStatement.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return creatorid;
-	}
-
-	private String insertResourceQuery(HashMap<String, ByteIterator> values,
-			String db) {
-		String fields = "(";
-		String sqlValues = "(";
-		int fieldCounter = 0;
-
-		for (Entry<String, ByteIterator> it : values.entrySet()) {
-			if (0 == fieldCounter) {
-				fields += it.getKey();
-				sqlValues += "?";
-			} else {
-				fields += "," + it.getKey();
-				sqlValues += ",?";
-			}
-			fieldCounter++;
-		}
-		fields += ")";
-		sqlValues += ")";
-		String query = "INSERT into %s.RESOURCES " + fields + " VALUES "
-				+ sqlValues;
-		query = String.format(query, db);
-		return query;
 	}
 
 	private void insertUsers(HashMap<String, ByteIterator> values, String db,
@@ -643,7 +578,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 						"select u.* from %s.users u, %s.friendship f where f.userid1 = ? and f.userid2 = u.uid",
 						dbname, dbname);
 
-		PreparedStatement statement;
+		PreparedStatement statement = null;
 		ResultSet rs = null;
 		boolean error = false;
 		try {
@@ -659,10 +594,13 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			try {
 				if (null != rs)
 					rs.close();
+				statement.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
+
+		System.out.println("listing all friends");
 
 		if (error)
 			return 1;
@@ -733,14 +671,14 @@ public class DB2Client extends DB implements DB2ClientConstants {
 	@Override
 	public int queryConfirmedFriendshipIds(int memberID,
 			Vector<Integer> confirmedIds) {
-		// TODO Auto-generated method stub
+		System.out.println("query confirmed friendhsips");
 		return 0;
 	}
 
 	@Override
 	public int queryPendingFriendshipIds(int memberID,
 			Vector<Integer> pendingIds) {
-		// TODO Auto-generated method stub
+		System.out.println("query pending friendships");
 		return 0;
 	}
 
@@ -872,6 +810,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			}
 		}
 
+		System.out.println("thaw friendship");
 		return 0;
 	}
 
@@ -913,6 +852,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			return 1;
 		}
 
+		System.out.println("view comment on resource");
+
 		return 0;
 	}
 
@@ -921,12 +862,14 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			Vector<HashMap<String, ByteIterator>> result, boolean insertImage,
 			boolean testMode) {
 
+		System.out.println("view friend req");
+
 		String query = String
 				.format(
 						"select u.* from %s.users u, %s.PENDING_FRIENDSHIP f where f.userid1 = ? and f.userid2 = u.uid",
 						dbname, dbname);
 
-		PreparedStatement statement;
+		PreparedStatement statement = null;
 		ResultSet rs = null;
 		boolean error = false;
 		try {
@@ -942,10 +885,13 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			try {
 				if (null != rs)
 					rs.close();
+				statement.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
 		}
+
+		System.out.println("view friend req end");
 
 		if (error)
 			return 1;
@@ -961,20 +907,30 @@ public class DB2Client extends DB implements DB2ClientConstants {
 				.format(
 						"select FRND_CNT, RSRC_CNT, NO_PEND_REQ from %s.users where uid = ?",
 						dbname);
+		PreparedStatement statement = null;
 
 		try {
-			PreparedStatement statement = conn.prepareStatement(query);
+			statement = conn.prepareStatement(query);
 			statement.setInt(1, profileOwnerID);
 			ResultSet rs = statement.executeQuery();
 			int v = populateUserRecord(result, rs);
 		} catch (SQLException e) {
 			e.printStackTrace();
+		} finally {
+			try {
+				statement.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
 
 		if (requesterID != profileOwnerID) {
 			if (result.containsKey("pendingcount"))
 				result.remove("pendingcount");
 		}
+
+		System.out.println("view profile");
+
 		return 0;
 	}
 
@@ -1020,14 +976,23 @@ public class DB2Client extends DB implements DB2ClientConstants {
 						"select * from %s.resources where ( creatorid = %s or walluserid = %s ) order by RID DESC FETCH FIRST %s ROWS ONLY",
 						dbname, profileOwnerID, profileOwnerID, k);
 
+		Statement statement = null;
 		try {
-			Statement statement = conn.createStatement();
+			statement = conn.createStatement();
 			ResultSet rs = statement.executeQuery(query);
 			int v = populateTopKUserRecord(result, rs);
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return 1;
+		} finally {
+			try {
+				statement.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
+
+		System.out.println("view top k resources");
 		return 0;
 	}
 
