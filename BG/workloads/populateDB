@@ -1,11 +1,11 @@
 # This is the workload for the user table.
 
 # Fields for populating the user table.
-usercount=100
+usercount=10000
 useroffset=0
-resourcecountperuser=10
-friendcountperuser=10
-confperc=1
+resourcecountperuser=100
+friendcountperuser=100
+confperc=.5
 manipulationcountperresource=2
 
 userworkload=edu.usc.bg.workloads.UserWorkload

@@ -1,0 +1,8 @@
+~/Downloads/voltdb/bin/voltcompiler ./ project.xml bg.jar
+~/Downloads/voltdb/bin/voltdb create catalog bg.jar
+CLASSPATH=/Users/jude/Downloads/voltdb/voltdb/*:/Users/jude/Downloads/voltdb/lib/*
+export CLASSPATH
+~/Downloads/voltdb/bin/voltdb create host localhost catalog bg.jar deployment deployment.xml
+java -Xmx1024m -Djava.library.path=/Users/jude/Downloads/voltdb/voltdb -Dlog4j.configuration=file:///Users/jude/Downloads/voltdb/voltdb/log4j.xml org.voltdb.VoltDB create host localhost catalog bg.jar deployment deployment.xml
+
+exec @SnapshotSave /Users/Jude bg_1_cores_256m_ram 1;
