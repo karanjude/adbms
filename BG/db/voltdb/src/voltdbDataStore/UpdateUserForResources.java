@@ -6,14 +6,12 @@ import org.voltdb.VoltTable;
 
 public class UpdateUserForResources extends VoltProcedure {
 	public final SQLStmt sql = new SQLStmt(
-		      "UPDATE Users SET resourceCount = resourceCount +1 WHERE userid= ?;"
-		  );
+			"UPDATE Users SET resourceCount = resourceCount +1 WHERE userid= ?;");
 
-		  public VoltTable[] run( int uId
-		                          )
-		      throws VoltAbortException {
-		          voltQueueSQL( sql, uId);
-		          voltExecuteSQL();
-		          return null;
-		      }
+	public VoltTable[] run(int uId) throws VoltAbortException {
+		System.out.println("Update User For Resources");
+		voltQueueSQL(sql, uId);
+		voltExecuteSQL();
+		return null;
+	}
 }

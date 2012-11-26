@@ -16,10 +16,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.yahoo.ycsb.ByteIterator;
@@ -27,6 +27,8 @@ import com.yahoo.ycsb.Client;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.StringByteIterator;
+
+import db2DataStore.DB2ClientConstants;
 
 public class DB2Client extends DB implements DB2ClientConstants {
 
@@ -196,9 +198,9 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					+ " END ";
 
 			dropProcedure(stmt, db, "CreatePendingFriendship");
-			insertStoredProcedure(stmt, db, "CreatePendingFriendhip", String
-					.format(createPendingFriendshipProcedure, db, db, db, db,
-							db, db, db));
+			insertStoredProcedure(stmt, db, "CreatePendingFriendhip",
+					String.format(createPendingFriendshipProcedure, db, db, db,
+							db, db, db, db));
 
 			String resourceQuery = "CREATE PROCEDURE %s.InsertResource (IN CID int, IN WID int, TYPE VARCHAR(200), BODY VARCHAR(200), DOC VARCHAR(200)) "
 					+ " BEGIN "
@@ -207,8 +209,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					+ " END";
 
 			dropProcedure(stmt, db, "InsertResource");
-			insertStoredProcedure(stmt, db, "InsertResource", String.format(
-					resourceQuery, db, db, db, db));
+			insertStoredProcedure(stmt, db, "InsertResource",
+					String.format(resourceQuery, db, db, db, db));
 
 			String pndgFrndshpUid1Idx = "CREATE INDEX %s.PNDG_FRNDSHP_UID1_IDX ON %s.PENDING_FRIENDSHIP(USERID1)";
 			String pndgFrndshpUid2Idx = "CREATE INDEX %s.PNDG_FRNDSHP_UID2_IDX ON %s.PENDING_FRIENDSHIP(USERID2)";
@@ -217,24 +219,24 @@ public class DB2Client extends DB implements DB2ClientConstants {
 			String rsrcRidIdx = "CREATE INDEX %s.RSRC_RID_IDX ON %s.RESOURCES(RID)";
 
 			dropIndex(stmt, db, "PNDG_FRNDSHP_UID1_IDX");
-			insertIndex(stmt, db, "PNDG_FRNDSHP_UID1_IDX", String.format(
-					pndgFrndshpUid1Idx, db, db));
+			insertIndex(stmt, db, "PNDG_FRNDSHP_UID1_IDX",
+					String.format(pndgFrndshpUid1Idx, db, db));
 
 			dropIndex(stmt, db, "PNDG_FRNDSHP_UID2_IDX");
-			insertIndex(stmt, db, "PNDG_FRNDSHP_UID2_IDX", String.format(
-					pndgFrndshpUid2Idx, db, db));
+			insertIndex(stmt, db, "PNDG_FRNDSHP_UID2_IDX",
+					String.format(pndgFrndshpUid2Idx, db, db));
 
 			dropIndex(stmt, db, "FRNDSHP_UID2_IDX");
-			insertIndex(stmt, db, "FRNDSHP_UID2_IDX", String.format(
-					frndshpUid1Idx, db, db));
+			insertIndex(stmt, db, "FRNDSHP_UID2_IDX",
+					String.format(frndshpUid1Idx, db, db));
 
 			dropIndex(stmt, db, "FRNDSHP_UID1_IDX");
-			insertIndex(stmt, db, "FRNDSHP_UID1_IDX", String.format(
-					frndshpUid2Idx, db, db));
+			insertIndex(stmt, db, "FRNDSHP_UID1_IDX",
+					String.format(frndshpUid2Idx, db, db));
 
 			dropIndex(stmt, db, "RSRC_RID_IDX");
-			insertIndex(stmt, db, "RSRC_RID_IDX", String.format(rsrcRidIdx, db,
-					db));
+			insertIndex(stmt, db, "RSRC_RID_IDX",
+					String.format(rsrcRidIdx, db, db));
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -352,7 +354,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int acceptFriend(int friendid1, int friendid2) {
 		return CreateFriendship(friendid1, friendid2);
 	}
@@ -363,7 +364,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int insertEntity(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
@@ -541,7 +541,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return key;
 	}
 
-	@Override
 	public int inviteFriend(int friendid1, int friendid2) {
 		long start = System.currentTimeMillis();
 		String call = String.format("CALL %s.CreatePendingFriendship(?,?)",
@@ -568,14 +567,12 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int listFriends(int requesterID, int profileOwnerID,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
 
 		String query = String
-				.format(
-						"select u.* from %s.users u, %s.friendship f where f.userid1 = ? and f.userid2 = u.uid",
+				.format("select u.* from %s.users u, %s.friendship f where f.userid1 = ? and f.userid2 = u.uid",
 						dbname, dbname);
 
 		PreparedStatement statement = null;
@@ -621,8 +618,8 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					if (col_name.equalsIgnoreCase("PIC")
 							|| col_name.equalsIgnoreCase("TPIC")) {
 						Blob aBlob = rs.getBlob(col_name);
-						byte[] allBytesInBlob = aBlob.getBytes(1, (int) aBlob
-								.length());
+						byte[] allBytesInBlob = aBlob.getBytes(1,
+								(int) aBlob.length());
 						value = allBytesInBlob.toString();
 					} else {
 						value = rs.getString(col_name);
@@ -639,14 +636,12 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID, HashMap<String, ByteIterator> values) {
 		System.out.println("Insert manipulation " + commentCreatorID);
 
 		String insertQuery = String
-				.format(
-						"insert into %s.MANIPULATION(CREATORID,RID,MODIFIERID,MTIME,TYPE,CONTENT) VALUES(?,?,?,CURRENT TIMESTAMP,'C',?)",
+				.format("insert into %s.MANIPULATION(CREATORID,RID,MODIFIERID,MTIME,TYPE,CONTENT) VALUES(?,?,?,CURRENT TIMESTAMP,'C',?)",
 						dbname);
 		try {
 			PreparedStatement p = conn.prepareStatement(insertQuery);
@@ -682,27 +677,23 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int rejectFriend(int friendid1, int friendid2) {
 		System.out.println("reject pending friendship " + friendid1 + " "
 				+ friendid2);
 
 		String decreasePendingRequestsSql = String
-				.format(
-						"update %s.USERS set "
-								+ "NO_PEND_REQ = (select NO_PEND_REQ - 1 from %s.Users where UID = ?) "
-								+ "where UID=?", dbname, dbname);
+				.format("update %s.USERS set "
+						+ "NO_PEND_REQ = (select NO_PEND_REQ - 1 from %s.Users where UID = ?) "
+						+ "where UID=?", dbname, dbname);
 
 		String increaseNumberOfRejectsSql = String
-				.format(
-						"update %s.USERS set "
-								+ "NO_PEND_REQ = (select NO_PEN_REQ - 1 from %s.Users where UID = ?), "
-								+ "NO_REQ_REJECT = (select NO_REQ_REJECT + 1 from %s.Users where UID = ?) "
-								+ "where UID=?", dbname, dbname, dbname);
+				.format("update %s.USERS set "
+						+ "NO_PEND_REQ = (select NO_PEN_REQ - 1 from %s.Users where UID = ?), "
+						+ "NO_REQ_REJECT = (select NO_REQ_REJECT + 1 from %s.Users where UID = ?) "
+						+ "where UID=?", dbname, dbname, dbname);
 
 		String deletePendingFriendshipQuery = String
-				.format(
-						"delete from %s.PENDING_FRIENDSHIP(USERID1, USERID2) where userid1=? and userid2=?",
+				.format("delete from %s.PENDING_FRIENDSHIP(USERID1, USERID2) where userid1=? and userid2=?",
 						dbname);
 
 		ArrayList<PreparedStatement> statements = new ArrayList<PreparedStatement>();
@@ -773,17 +764,15 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return preparedStatement;
 	}
 
-	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		String deleteQuery = String.format(
 				"delete from %s.FRIENDSHIP where userid1 = ? and userid2 = ?",
 				dbname);
 
 		String updateFriendCountSql = String
-				.format(
-						"update %s.USERS "
-								+ "set FRND_CNT = (select FRND_CNT - 1 from %s.Users where UID = ?) "
-								+ "where UID=?", dbname, dbname);
+				.format("update %s.USERS "
+						+ "set FRND_CNT = (select FRND_CNT - 1 from %s.Users where UID = ?) "
+						+ "where UID=?", dbname, dbname);
 
 		List<Statement> statements = new ArrayList<Statement>();
 		try {
@@ -834,7 +823,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		statements.add(statement);
 	}
 
-	@Override
 	public int viewCommentOnResource(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
 
@@ -857,7 +845,6 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int viewFriendReq(int profileOwnerID,
 			Vector<HashMap<String, ByteIterator>> result, boolean insertImage,
 			boolean testMode) {
@@ -865,8 +852,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		System.out.println("view friend req");
 
 		String query = String
-				.format(
-						"select u.* from %s.users u, %s.PENDING_FRIENDSHIP f where f.userid1 = ? and f.userid2 = u.uid",
+				.format("select u.* from %s.users u, %s.PENDING_FRIENDSHIP f where f.userid1 = ? and f.userid2 = u.uid",
 						dbname, dbname);
 
 		PreparedStatement statement = null;
@@ -898,14 +884,12 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int viewProfile(int requesterID, int profileOwnerID,
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// "friendcount", "resourcecount" and "pendingcount"
 		String query = String
-				.format(
-						"select FRND_CNT, RSRC_CNT, NO_PEND_REQ from %s.users where uid = ?",
+				.format("select FRND_CNT, RSRC_CNT, NO_PEND_REQ from %s.users where uid = ?",
 						dbname);
 		PreparedStatement statement = null;
 
@@ -946,9 +930,7 @@ public class DB2Client extends DB implements DB2ClientConstants {
 					String col_name = md.getColumnName(i);
 					String value = rs.getString(col_name);
 					if (col_name.equals("FRND_CNT")) {
-						result
-								.put("friendcount", new StringByteIterator(
-										value));
+						result.put("friendcount", new StringByteIterator(value));
 					}
 					if (col_name.equals("NO_PEND_REQ")) {
 						result.put("pendingcount",
@@ -968,12 +950,10 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		return 0;
 	}
 
-	@Override
 	public int viewTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
 		String query = String
-				.format(
-						"select * from %s.resources where ( creatorid = %s or walluserid = %s ) order by RID DESC FETCH FIRST %s ROWS ONLY",
+				.format("select * from %s.resources where ( creatorid = %s or walluserid = %s ) order by RID DESC FETCH FIRST %s ROWS ONLY",
 						dbname, profileOwnerID, profileOwnerID, k);
 
 		Statement statement = null;
@@ -1116,5 +1096,76 @@ public class DB2Client extends DB implements DB2ClientConstants {
 		if (rs != null)
 			rs.close();
 		return rs;
+	}
+
+	@Override
+	public int insert(String table, String key,
+			HashMap<String, ByteIterator> values, boolean insertImage,
+			int imageSize) {
+		return insertEntity(table, key, values, insertImage, imageSize);
+	}
+
+	@Override
+	public int getUserProfile(int requesterID, int profileOwnerID,
+			HashMap<String, ByteIterator> result, boolean insertImage,
+			boolean testMode) {
+		return viewProfile(requesterID, profileOwnerID, result, insertImage,
+				testMode);
+	}
+
+	@Override
+	public int getListOfFriends(int requesterID, int profileOwnerID,
+			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
+			boolean insertImage, boolean testMode) {
+		return listFriends(requesterID, profileOwnerID, fields, result,
+				insertImage, testMode);
+	}
+
+	@Override
+	public int viewPendingRequests(int profileOwnerID,
+			Vector<HashMap<String, ByteIterator>> values, boolean insertImage,
+			boolean testMode) {
+		return viewPendingRequests(profileOwnerID, values, insertImage,
+				testMode);
+	}
+
+	@Override
+	public int acceptFriendRequest(int invitorID, int inviteeID) {
+		return acceptFriendRequest(invitorID, inviteeID);
+	}
+
+	@Override
+	public int rejectFriendRequest(int invitorID, int inviteeID) {
+		return rejectFriendRequest(invitorID, inviteeID);
+	}
+
+	@Override
+	public int inviteFriends(int invitorID, int inviteeID) {
+		return inviteFriend(invitorID, inviteeID);
+	}
+
+	@Override
+	public int getTopKResources(int requesterID, int profileOwnerID, int k,
+			Vector<HashMap<String, ByteIterator>> result) {
+		return viewTopKResources(requesterID, profileOwnerID, k, result);
+	}
+
+	@Override
+	public int getResourceComments(int requesterID, int profileOwnerID,
+			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
+		return viewCommentOnResource(requesterID, profileOwnerID, resourceID,
+				result);
+	}
+
+	@Override
+	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
+			int resourceID) {
+		return postCommentOnResource(commentCreatorID, profileOwnerID,
+				resourceID);
+	}
+
+	@Override
+	public int unFriendFriend(int friendid1, int friendid2) {
+		return thawFriendship(friendid1, friendid2);
 	}
 }

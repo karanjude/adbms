@@ -6,18 +6,15 @@ import org.voltdb.VoltTable;
 
 public class ViewCommentOnResource extends VoltProcedure {
 	public final SQLStmt sql = new SQLStmt(
-		      "SELECT * FROM Modify WHERE rid = ?;"
-		  );
+			"SELECT * FROM Modify WHERE rid = ?;");
 
-	
-		  public VoltTable[] run( int id
-		                         
-		                          )
-		      throws VoltAbortException {
-		          voltQueueSQL( sql,id);
-		          return voltExecuteSQL();
-		           
-		      }
+	public VoltTable[] run(int id
 
+	) throws VoltAbortException {
+		System.out.println("View Comment On Resource");
+		voltQueueSQL(sql, id);
+		return voltExecuteSQL();
+
+	}
 
 }

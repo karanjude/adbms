@@ -17,7 +17,6 @@
  * LICENSE file.                                                                                                                                                                   
  */
 
-
 package edu.usc.bg.workloads;
 
 import java.text.SimpleDateFormat;
@@ -37,10 +36,12 @@ import com.yahoo.ycsb.Workload;
 import com.yahoo.ycsb.WorkloadException;
 import com.yahoo.ycsb.generator.IntegerGenerator;
 import com.yahoo.ycsb.generator.CounterGenerator;
+
 /**
  * Used for loading comments for the resources created for the members
+ * 
  * @author barahman
- *
+ * 
  */
 public class ManipulationWorkload extends Workload {
 
@@ -51,12 +52,12 @@ public class ManipulationWorkload extends Workload {
 	// The length of each field for a record in Byte.
 	public static int fieldLength = 100;
 	// The name of each field for the "manipulation" table.
-	public static String[] fieldName = {"mid", "creatorid", "rid", "modifierid", "timestamp", "type", "content"};
+	public static String[] fieldName = { "mid", "creatorid", "rid",
+			"modifierid", "timestamp", "type", "content" };
 	// The base number for generating the random date.
 	public final static long MAX_INTERVAL = 50000000000L;
 	// The start of the date for generating the random date.
 	public final static long BASE_INTERVAL = 1250000000000L;
-
 
 	// These following fields could be kept in the property file.
 	// The number of users.
@@ -68,14 +69,14 @@ public class ManipulationWorkload extends Workload {
 	// The number of average manipulations per resource.
 	public static int avgManipulationCount = 0;
 	// The number of record to be inserted.
-	public static int recordCount = resourceCount * avgManipulationCount; // Manipulation number.
+	public static int recordCount = resourceCount * avgManipulationCount; // Manipulation
+																			// number.
 
-
-	private static IntegerGenerator keySequence ;
+	private static IntegerGenerator keySequence;
 	private static IntegerGenerator creatorSequence;
 	private static IntegerGenerator resourceSequence;
-	private static int creatorNum  ;
-	private static int resourceNum ;
+	private static int creatorNum;
+	private static int resourceNum;
 	private static Random random = new Random();
 	Vector<Integer> _members;
 
@@ -84,24 +85,29 @@ public class ManipulationWorkload extends Workload {
 	}
 
 	// Initialize all of the threads with the same configuration.
-	public void init(Properties p,  Vector<Integer> members) throws WorkloadException {
-		userCount=Integer.parseInt(p.getProperty(Client.USER_COUNT_PROPERTY));
-		avgResourceCount=Integer.parseInt(p.getProperty(Client.RESOURCE_COUNT_PROPERTY));
-		avgManipulationCount=Integer.parseInt(p.getProperty(Client.MANIPULATION_COUNT_PROPERTY));
-		recordCount = resourceCount * avgManipulationCount; // Manipulation number.
-		keySequence = new CounterGenerator(recordCount); // For generating manipulation ID.
+	public void init(Properties p, Vector<Integer> members)
+			throws WorkloadException {
+		userCount = Integer.parseInt(p.getProperty(Client.USER_COUNT_PROPERTY));
+		avgResourceCount = Integer.parseInt(p
+				.getProperty(Client.RESOURCE_COUNT_PROPERTY));
+		avgManipulationCount = Integer.parseInt(p
+				.getProperty(Client.MANIPULATION_COUNT_PROPERTY));
+		recordCount = resourceCount * avgManipulationCount; // Manipulation
+															// number.
+		keySequence = new CounterGenerator(recordCount); // For generating
+															// manipulation ID.
 		creatorSequence = new CounterGenerator(0); // For generating creator ID.
-		resourceSequence = new CounterGenerator(0); // For generating resource ID.
-		creatorNum  = creatorSequence.nextInt(); // The ID of creator
+		resourceSequence = new CounterGenerator(0); // For generating resource
+													// ID.
+		creatorNum = creatorSequence.nextInt(); // The ID of creator
 		resourceNum = resourceSequence.nextInt();
 		_members = members;
 		return;
 	}
 
-
 	// Return a date using the specific format.
-	public static String getDate(){
-		Date date = new Date(random.nextLong()%MAX_INTERVAL + BASE_INTERVAL);
+	public static String getDate() {
+		Date date = new Date(random.nextLong() % MAX_INTERVAL + BASE_INTERVAL);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		String dateString = sdf.format(date);
 
@@ -110,23 +116,27 @@ public class ManipulationWorkload extends Workload {
 
 	// Prepare the record for "manipulation" table.
 	// mid, creatorId, rid, modifiedId, timestamp, type, content.
-	private LinkedHashMap<String, ByteIterator> buildValues(String dbKey, int creatorNum, int resourceNum) {
+	private LinkedHashMap<String, ByteIterator> buildValues(String dbKey,
+			int creatorNum, int resourceNum) {
 		LinkedHashMap<String, ByteIterator> values = new LinkedHashMap<String, ByteIterator>();
 
-		for (int i = 1; i <= fieldCount; ++i)
-		{
-			// Generate the fields using StringByteIterator and RandomByteIterator.
+		for (int i = 1; i <= fieldCount; ++i) {
+			// Generate the fields using StringByteIterator and
+			// RandomByteIterator.
 			String fieldKey = fieldName[i];
 			ByteIterator data;
-			if(1 == i){
-				data = new StringByteIterator(Integer.toString(creatorNum)); // Creator ID.
-			}else if(2 == i){
-				data = new StringByteIterator(Integer.toString(resourceNum)); 	// Resource ID.
-			}else if(3 == i){
-				data = new StringByteIterator(Integer.toString(userCount + random.nextInt(userCount))); // Modifier ID.
-			}else if(4 == i){
+			if (1 == i) {
+				data = new StringByteIterator(Integer.toString(creatorNum)); // Creator
+																				// ID.
+			} else if (2 == i) {
+				data = new StringByteIterator(Integer.toString(resourceNum)); // Resource
+																				// ID.
+			} else if (3 == i) {
+				data = new StringByteIterator(Integer.toString(userCount
+						+ random.nextInt(userCount))); // Modifier ID.
+			} else if (4 == i) {
 				data = new StringByteIterator(getDate()); // Timestamp.
-			}else{
+			} else {
 				data = new RandomByteIterator(100); // Other fields.
 			}
 			values.put(fieldKey, data);
@@ -141,36 +151,47 @@ public class ManipulationWorkload extends Workload {
 		return keyNumStr;
 	}
 
-	private static int resourceCounter  = -1; // Counter for controlling the resources.
-	private static int manipulationCounter = -1; // Counter for controlling the manipulations.
+	private static int resourceCounter = -1; // Counter for controlling the
+												// resources.
+	private static int manipulationCounter = -1; // Counter for controlling the
+													// manipulations.
+
 	@Override
 	public boolean doInsert(DB db, Object threadState) {
 		int keyNum = keySequence.nextInt(); // The ID of the manipulation.
 
-		creatorNum = _members.get(creatorNum);
-		resourceNum = creatorNum*avgResourceCount+resourceNum;
+		try {
+			creatorNum = _members.get(creatorNum);
+			resourceNum = creatorNum * avgResourceCount + resourceNum;
 
-		if(++manipulationCounter == avgManipulationCount){
-			if(++resourceCounter == avgResourceCount){
-				creatorNum = creatorSequence.nextInt(); // The ID of the creator.
-				creatorNum = _members.get(creatorNum);
-				resourceSequence = new CounterGenerator(0); // For generating resource ID.
-				resourceCounter = 0;
+			if (++manipulationCounter == avgManipulationCount) {
+				if (++resourceCounter == avgResourceCount) {
+					creatorNum = creatorSequence.nextInt(); // The ID of the
+															// creator.
+					creatorNum = _members.get(creatorNum);
+					resourceSequence = new CounterGenerator(0); // For
+																// generating
+																// resource ID.
+					resourceCounter = 0;
+				}
+				resourceNum = resourceSequence.nextInt(); // The ID of the
+															// resource.
+				resourceNum = creatorNum * avgResourceCount + resourceNum;
+				manipulationCounter = 0;
 			}
-			resourceNum = resourceSequence.nextInt(); // The ID of the resource.
-			resourceNum = creatorNum*avgResourceCount+resourceNum;
-			manipulationCounter = 0;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
 		}
 		String dbKey = buildKeyName(keyNum);
-		LinkedHashMap<String, ByteIterator> values = buildValues(dbKey, creatorNum, resourceNum);
-		//manipulations dont have images so insertImage = false
-		if (db.insert(table, dbKey, values, false,0) == 0)
+		LinkedHashMap<String, ByteIterator> values = buildValues(dbKey,
+				creatorNum, resourceNum);
+		// manipulations dont have images so insertImage = false
+		if (db.insert(table, dbKey, values, false, 0) == 0)
 			return true;
 		else
 			return false;
 	}
-
-
 
 	@Override
 	public HashMap<String, String> getDBInitialStats(DB db) {
@@ -189,12 +210,5 @@ public class ManipulationWorkload extends Workload {
 		// TODO Auto-generated method stub
 		return 0;
 	}
-
-
-
-
-
-
-
 
 }

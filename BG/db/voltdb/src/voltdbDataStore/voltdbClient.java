@@ -51,6 +51,8 @@ public class voltdbClient extends DB {
 	@Override
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
+		//System.out.println("getCreatedResources");
+
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -101,7 +103,7 @@ public class voltdbClient extends DB {
 	public HashMap<String, String> getInitialStats() {
 		// TODO Auto-generated method stub
 		HashMap<String, String> stats = new HashMap<String, String>();
-
+		//System.out.println("getInitialStats");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -166,7 +168,7 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
+		//System.out.println("CreateFriendship");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -175,10 +177,8 @@ public class voltdbClient extends DB {
 
 			client.callProcedure("InsertFriends", friendid1, friendid2, 2);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ProcCallException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -187,8 +187,6 @@ public class voltdbClient extends DB {
 
 	@Override
 	public void createSchema(Properties props) {
-		// TODO Auto-generated method stub
-
 		VoltProjectBuilder builder = new VoltProjectBuilder();
 		try {
 
@@ -341,6 +339,7 @@ public class voltdbClient extends DB {
 	public int insert(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
+		//System.out.println("insert");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -409,6 +408,7 @@ public class voltdbClient extends DB {
 	public int getUserProfile(int requesterID, int profileOwnerID,
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
+		//System.out.println("getUserProfile");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -549,6 +549,7 @@ public class voltdbClient extends DB {
 	public int getListOfFriends(int requesterID, int profileOwnerID,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
+		//System.out.println("getListOfFriends");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -629,6 +630,7 @@ public class voltdbClient extends DB {
 	public int viewPendingRequests(int profileOwnerID,
 			Vector<HashMap<String, ByteIterator>> valuess, boolean insertImage,
 			boolean testMode) {
+		//System.out.println("viewPendingRequests");
 		ClientResponse response;
 		try {
 			if (null == client) {
@@ -687,6 +689,7 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int acceptFriendRequest(int invitorID, int inviteeID) {
+		//System.out.println("acceptFriendRequest");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -705,6 +708,7 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int rejectFriendRequest(int invitorID, int inviteeID) {
+		//System.out.println("rejectFriendRequest");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -723,6 +727,7 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int inviteFriends(int invitorID, int inviteeID) {
+		//System.out.println("inviteFriends");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -744,6 +749,7 @@ public class voltdbClient extends DB {
 	@Override
 	public int getTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
+		//System.out.println("getTopKResources");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -789,6 +795,7 @@ public class voltdbClient extends DB {
 	@Override
 	public int getResourceComments(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
+		//System.out.println("getResourceComments");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -833,6 +840,7 @@ public class voltdbClient extends DB {
 	@Override
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID) {
+		//System.out.println("postCommentOnResource");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -865,7 +873,7 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int unFriendFriend(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
+		//System.out.println("unFriendFriend");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();

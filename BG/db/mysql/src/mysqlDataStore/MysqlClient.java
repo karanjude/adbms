@@ -1,18 +1,32 @@
 package mysqlDataStore;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
+
 import com.yahoo.ycsb.ByteIterator;
+import com.yahoo.ycsb.Client;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 
@@ -79,10 +93,38 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 	}
 
 	@Override
-	public int insert(String table, String key,
+	public int insert(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
-		// TODO Auto-generated method stub
+		if (entitySet.equals("users")) {
+			ArrayList<String> tempList = new ArrayList<String>();
+			for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
+				String field = entry.getValue().toString();
+				tempList.add(field);
+			}
+
+			InsertUserProc insertProc = new InsertUserProc(conn);
+			insertProc
+					.execute(tempList.get(0), tempList.get(1), tempList.get(2),
+							tempList.get(3), tempList.get(4), tempList.get(5),
+							tempList.get(6), tempList.get(7), tempList.get(8),
+							tempList.get(9), tempList.get(10), 0, 0, 0);
+
+		} else if (entitySet.equals("resources")) {
+
+			ArrayList<String> tempList = new ArrayList<String>();
+			for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
+				String field = entry.getValue().toString();
+				tempList.add(field);
+			}
+
+			InsertResourcesProc insertResourceProc = new InsertResourcesProc(
+					conn);
+
+			insertResourceProc.execute(tempList.get(0), tempList.get(1),
+					tempList.get(2), tempList.get(3), tempList.get(4));
+
+		}
 		return 0;
 	}
 
@@ -158,19 +200,42 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 
 	@Override
 	public int unFriendFriend(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
+		ThawFriendshipProc proc = new ThawFriendshipProc(conn);
+		proc.execute(friendid1, friendid2, friendid2, friendid1);
 		return 0;
 	}
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		// TODO Auto-generated method stub
-		return null;
+		HashMap<String, String> stats = new HashMap<String, String>();
+
+		SelectUserCountProc selectUserCountProc = new SelectUserCountProc(conn);
+		Integer result = selectUserCountProc.execute();
+		stats.put("usercount", result.toString());
+
+		UserOffsetProc userOffsetProc = new UserOffsetProc(conn);
+		Integer offset = userOffsetProc.execute();
+
+		ResourceCountProc resourceCountproc = new ResourceCountProc(conn);
+		stats.put("resourcesperuser", resourceCountproc.execute(offset)
+				.toString());
+
+		FriendsPerUserProc friendsPerUserProc = new FriendsPerUserProc(conn);
+		stats.put("avgfriendsperuser", friendsPerUserProc.execute(offset)
+				.toString());
+
+		PendingFriendsPerUserProc pendingFriendsPerUserProc = new PendingFriendsPerUserProc(
+				conn);
+		stats.put("avgpendingperuser", pendingFriendsPerUserProc
+				.execute(offset).toString());
+
+		return stats;
 	}
 
 	@Override
-	public int CreateFriendship(int memberA, int memberB) {
-		// TODO Auto-generated method stub
+	public int CreateFriendship(int friendid1, int friendid2) {
+		InsertFriendsProc proc = new InsertFriendsProc(conn);
+		proc.execute(friendid1, friendid2, 2);
 		return 0;
 	}
 
@@ -186,17 +251,43 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 
 			System.out.println("TABLE FRIENDSHIP CREATED");
 
-			stmt.executeUpdate("DROP TABLE IF EXISTS MANIPULATION");
+			stmt.executeUpdate("DROP TABLE IF EXISTS MODIFY");
 
-			stmt.executeUpdate("CREATE TABLE MANIPULATION(MID int, CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(200), TYPE VARCHAR(200), CONTENT VARCHAR(200));");
+			stmt.executeUpdate("CREATE TABLE MODIFY(CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(255), TYPE VARCHAR(255), CONTENT VARCHAR(255));");
 
-			System.out.println("TABLE MANIPULATION CREATED");
+			stmt.executeUpdate("CREATE INDEX i4 ON Modify (rid);");
 
-			stmt.executeUpdate("DROP TABLE IF EXISTS RESOURCES");
+			System.out.println("TABLE MODIFY CREATED");
 
-			stmt.executeUpdate("CREATE TABLE RESOURCES(RID int,CREATORID int,WALLUSERID int, TYPE VARCHAR(200),BODY VARCHAR(200), DOC VARCHAR(200));");
-		
-			System.out.println("TABLE RESOURCES CREATED");
+			stmt.executeUpdate("DROP TABLE IF EXISTS RESOURCE");
+
+			stmt.executeUpdate("CREATE TABLE Resource ("
+					+ "  rid INTEGER NOT NULL AUTO_INCREMENT,"
+					+ "  creatorid INTEGER," + "  wallUserId INTEGER NOT NULL,"
+					+ "  type VARCHAR(255)," + "  body VARCHAR(255),"
+					+ "  doc VARCHAR(255)," + "  PRIMARY KEY (rid)" + "); ");
+
+			stmt.executeUpdate("CREATE INDEX i3 ON Resource (wallUserId);");
+
+			System.out.println("TABLE RESOURCE CREATED");
+
+			stmt.executeUpdate("DROP TABLE IF EXISTS Users");
+
+			stmt.executeUpdate("CREATE TABLE Users ("
+					+ "  userid INTEGER NOT NULL AUTO_INCREMENT,"
+					+ "  username VARCHAR(255)," + "  pw VARCHAR(255),"
+					+ "  fname VARCHAR(255)," + "  lname VARCHAR(255),"
+					+ "  gender VARCHAR(255)," + "  dob VARCHAR(255),"
+					+ "  jdate VARCHAR(255)," + "  ldate VARCHAR(255),"
+					+ "  address VARCHAR(255)," + "  email VARCHAR(255),"
+					+ "  tel VARCHAR(255)," + "  confirmedFriends INTEGER,"
+					+ "  pendingFriends INTEGER," + "  resourceCount INTEGER,"
+					+ "  PRIMARY KEY (userid)" + "); ");
+
+			stmt.executeUpdate("CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
+
+			System.out.println("TABLE Users CREATED");
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {

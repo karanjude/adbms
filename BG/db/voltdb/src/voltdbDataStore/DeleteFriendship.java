@@ -6,20 +6,15 @@ import org.voltdb.VoltTable;
 
 public class DeleteFriendship extends VoltProcedure {
 	public final SQLStmt sql = new SQLStmt(
-		      "DELETE FROM Friendship WHERE userid1=? and userid2= ? and status=1;"
-		  );
+			"DELETE FROM Friendship WHERE userid1=? and userid2= ? and status=1;");
 
-	
-		  public VoltTable[] run( int friendid1,
-		                          int friendid2
-		                        
-		                         
-		                          )
-		      throws VoltAbortException {
-		          voltQueueSQL( sql,friendid1,friendid2);
-		          voltExecuteSQL();
-		          return null;
-		      }
+	public VoltTable[] run(int friendid1, int friendid2
 
+	) throws VoltAbortException {
+		System.out.println("Delete Friendship");
+		voltQueueSQL(sql, friendid1, friendid2);
+		voltExecuteSQL();
+		return null;
+	}
 
 }

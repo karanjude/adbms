@@ -6,18 +6,15 @@ import org.voltdb.VoltTable;
 
 public class GetCreatedResources extends VoltProcedure {
 	public final SQLStmt sql = new SQLStmt(
-		      "SELECT * FROM Resource WHERE creatorid = ?;"
-		  );
+			"SELECT * FROM Resource WHERE creatorid = ?;");
 
-	
-		  public VoltTable[] run( int id
-		                         
-		                          )
-		      throws VoltAbortException {
-		          voltQueueSQL( sql,id);
-		          return voltExecuteSQL();
-		           
-		      }
+	public VoltTable[] run(int id
 
+	) throws VoltAbortException {
+		System.out.println("Get Created Resources");
+		voltQueueSQL(sql, id);
+		return voltExecuteSQL();
+
+	}
 
 }
