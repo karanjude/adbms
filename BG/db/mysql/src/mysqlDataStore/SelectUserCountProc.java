@@ -1,6 +1,9 @@
 package mysqlDataStore;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class SelectUserCountProc {
 
@@ -11,7 +14,34 @@ public class SelectUserCountProc {
 	}
 
 	public Integer execute() {
-		// TODO Auto-generated method stub
+		Statement st = null;
+		ResultSet rs = null;
+		try {
+			st = conn.createStatement();
+			String query = "SELECT count(*) from users";
+			rs = st.executeQuery(query);
+			if (rs.next()) {
+				return Integer.parseInt(rs.getString(1));
+			}
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (null != rs) {
+				try {
+					rs.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+			if (null != st) {
+				try {
+					st.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 		return 0;
 	}
 

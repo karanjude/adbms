@@ -1,10 +1,10 @@
-operationcount=100
+operationcount=0
 workload=edu.usc.bg.workloads.CoreWorkload
 
-usercount=100
+usercount=10000
 useroffset=0
-resourcecountperuser=10
-friendcountperuser=10
+resourcecountperuser=100
+friendcountperuser=100
 confperc=1
 manipulationcountperresource=0
 

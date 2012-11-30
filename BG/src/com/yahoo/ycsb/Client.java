@@ -647,6 +647,7 @@ public class Client {
 	public static void main(String[] args) {
 		Client client = new Client();
 		try {
+			System.out.println(args);
 			client.doMain(args);
 		} catch (ArgumentException e) {
 			// TODO Auto-generated catch block

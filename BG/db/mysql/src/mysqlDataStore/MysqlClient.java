@@ -247,13 +247,13 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 
 			stmt.executeUpdate("DROP TABLE IF EXISTS FRIENDSHIP");
 
-			stmt.executeUpdate("CREATE TABLE FRIENDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1)");
+			stmt.executeUpdate("CREATE TABLE FRIENDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1) ENGINE=InnoDB;");
 
 			System.out.println("TABLE FRIENDSHIP CREATED");
 
 			stmt.executeUpdate("DROP TABLE IF EXISTS MODIFY");
 
-			stmt.executeUpdate("CREATE TABLE MODIFY(CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(255), TYPE VARCHAR(255), CONTENT VARCHAR(255));");
+			stmt.executeUpdate("CREATE TABLE MODIFY(CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(255), TYPE VARCHAR(255), CONTENT VARCHAR(255)) ENGINE=InnoDB;");
 
 			stmt.executeUpdate("CREATE INDEX i4 ON Modify (rid);");
 
@@ -265,7 +265,7 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 					+ "  rid INTEGER NOT NULL AUTO_INCREMENT,"
 					+ "  creatorid INTEGER," + "  wallUserId INTEGER NOT NULL,"
 					+ "  type VARCHAR(255)," + "  body VARCHAR(255),"
-					+ "  doc VARCHAR(255)," + "  PRIMARY KEY (rid)" + "); ");
+					+ "  doc VARCHAR(255)," + "  PRIMARY KEY (rid)" + ") ENGINE=InnoDB; ");
 
 			stmt.executeUpdate("CREATE INDEX i3 ON Resource (wallUserId);");
 
@@ -282,7 +282,7 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 					+ "  address VARCHAR(255)," + "  email VARCHAR(255),"
 					+ "  tel VARCHAR(255)," + "  confirmedFriends INTEGER,"
 					+ "  pendingFriends INTEGER," + "  resourceCount INTEGER,"
-					+ "  PRIMARY KEY (userid)" + "); ");
+					+ "  PRIMARY KEY (userid)" + ") ENGINE=InnoDB; ");
 
 			stmt.executeUpdate("CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
 
