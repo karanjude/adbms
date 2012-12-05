@@ -1,6 +1,15 @@
 package edu.bg.verticalscaling;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,7 +52,7 @@ public class BGVerticalScalingDriver {
 
 	private void runVerticalScalingBenchmark() {
 		List<List<String>> sets = new ArrayList<List<String>>();
-		sets.add(options.actionWorkloads);
+		//sets.add(options.actionWorkloads);
 		sets.add(options.ram);
 		sets.add(options.cores);
 		sets.add(options.threads);
@@ -54,6 +63,17 @@ public class BGVerticalScalingDriver {
 
 		ConfigGenerator configGenerator = new ConfigGenerator(sets);
 		int count = 0;
+
+		FileOutputStream writer;
+		PrintWriter w = null;
+
+		try {
+			writer = new FileOutputStream(new File("worklog.log"));
+			w = new PrintWriter(writer);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+
 		while (configGenerator.next()) {
 			String configValue = configGenerator.value();
 			if (configValue.length() > 0) {
@@ -63,24 +83,25 @@ public class BGVerticalScalingDriver {
 				// count++;
 				runBGForConfiguration(configuration);
 				System.out.println("BG CONFIG RUN DONE");
+				w.write(configValue);
+				w.flush();
 			}
 		}
 		// System.out.println(count);
+		w.close();
 	}
 
 	private BGConfiguration makeConfiguration(String configValue) {
 		String[] vals = configValue.split("\\s+");
-		String workload = vals[0];
-		String ram = vals[1];
-		String cores = vals[2];
-		String threads = vals[3];
-		String operationCount = vals[4];
-		String workloadUserCount = vals[5];
-		String workloadFriendCount = vals[6];
-		String workloadResourceCount = vals[7];
+		String ram = vals[0];
+		String cores = vals[1];
+		String threads = vals[2];
+		String operationCount = vals[3];
+		String workloadUserCount = vals[4];
+		String workloadFriendCount = vals[5];
+		String workloadResourceCount = vals[6];
 
 		BGConfiguration configuration = new BGConfiguration();
-		configuration.actionWorkload = workload;
 		configuration.loadWorkload = options.loadWorkloads.get(0);
 		configuration.ram = Integer.parseInt(ram);
 		configuration.cores = Integer.parseInt(cores);
@@ -177,11 +198,111 @@ public class BGVerticalScalingDriver {
 		result.add(action);
 		result.addAll(options.getBGParams());
 		result.add("-P");
-		result.add(workload);
+		String workloadDir = options.workloadDirectory.get(0);
+		if (action.equals("-load")) {
+			result.add(getOrCreateWorkloadFile(workload, configuration,
+					workloadDir));
+		} else if (action.equals("-t")) {
+			result.add(getOrCreateWorkloadFile(workload, configuration,
+					workloadDir));
+		}
 		addParameter(result, "threadcount",
 				new Integer(configuration.threads).toString());
-		addParameter(result, "exportfile", options.exportFileBases.get(0)
-				+ getResultFileName(workload, configuration, action));
-		return null;
+		String exportFileName = options.exportFileBases.get(0)
+				+ getResultFileName(workload, configuration, action);
+		addParameter(result, "exportfile", exportFileName);
+		if (containsFile(exportFileName)) {
+			return new ArrayList<String>();
+		}
+		return result;
+	}
+
+	private boolean containsFile(String fileName) {
+		try {
+			FileReader reader = new FileReader(new File(fileName));
+			return true;
+		} catch (FileNotFoundException e) {
+			return false;
+		}
+	}
+
+	private String getOrCreateWorkloadFile(String workload,
+			BGConfiguration configuration, String workloadDir) {
+		String fileName = workloadDir + workload + "_"
+				+ configuration.operationCount + "_"
+				+ configuration.workloadUserCount + "_"
+				+ configuration.workloadFriendCount + "_"
+				+ configuration.workloadResourceCount;
+		FileReader reader = null;
+
+		try {
+			reader = new FileReader(new File(fileName));
+			return fileName;
+		} catch (FileNotFoundException e) {
+			File templateFile = new File(workloadDir + workload);
+			createFileFromTemplate(workloadDir, fileName, workload,
+					configuration, templateFile);
+		}
+
+		return fileName;
+	}
+
+	private void createFileFromTemplate(String workloadDir, String fileName,
+			String workload, BGConfiguration configuration, File templateFile) {
+		File outFile = new File(fileName);
+		BufferedReader reader = null;
+		BufferedWriter writer = null;
+		try {
+			reader = new BufferedReader(new FileReader(templateFile));
+			writer = new BufferedWriter(new FileWriter(outFile));
+
+			String r = "";
+			while ((r = reader.readLine()) != null) {
+				System.out.println(r);
+				if (r.startsWith("#")) {
+					writer.write(r);
+				} else if (r.length() == 0) {
+					writer.write(r);
+				} else {
+					String[] kv = r.split("=");
+					String key = kv[0];
+					if (key.equals("operationcount")) {
+						writer.write(key);
+						writer.write("=");
+						writer.write(configuration.operationCount.toString());
+					} else if (key.equals("usercount")) {
+						writer.write(key);
+						writer.write("=");
+						writer.write(configuration.workloadUserCount.toString());
+					} else if (key.equals("resourcecountperuser")) {
+						writer.write(key);
+						writer.write("=");
+						writer.write(configuration.workloadResourceCount
+								.toString());
+					} else if (key.equals("friendcountperuser")) {
+						writer.write(key);
+						writer.write("=");
+						writer.write(configuration.workloadFriendCount
+								.toString());
+					} else {
+						writer.write(r);
+					}
+				}
+				writer.append('\n');
+			}
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				reader.close();
+				writer.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+		}
 	}
 }

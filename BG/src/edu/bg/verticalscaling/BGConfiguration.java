@@ -4,12 +4,12 @@ public class BGConfiguration {
 
 	public String actionWorkload;
 	public String loadWorkload;
-	public int ram;
-	public int cores;
-	public int threads;
-	public int operationCount;
-	public int workloadUserCount;
-	public int workloadFriendCount;
-	public int workloadResourceCount;
+	public Integer ram;
+	public Integer cores;
+	public Integer threads;
+	public Integer operationCount;
+	public Integer workloadUserCount;
+	public Integer workloadFriendCount;
+	public Integer workloadResourceCount;
 
 }

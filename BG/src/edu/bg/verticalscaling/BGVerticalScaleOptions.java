@@ -82,7 +82,7 @@ public class BGVerticalScaleOptions {
 
 	private void buildBGParam(String key, StringBuilder toAdd,
 			String paramToken, String bgkey) {
-		if (properties.contains(key)) {
+		if (properties.containsKey(key)) {
 			bgParams.add(paramToken);
 			if (bgkey.length() == 0) {
 				bgParams.add(properties.getProperty(key));

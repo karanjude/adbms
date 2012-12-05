@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ProcCallException;
 
 import com.yahoo.ycsb.ArgumentException;
 import com.yahoo.ycsb.BGException;
@@ -23,6 +24,7 @@ public class VoltDbDataStoreController extends DataStoreControllerImpl {
 
 	private Process process;
 	private final BGVerticalScaleOptions bgOptions;
+	private org.voltdb.client.Client client;
 
 	public VoltDbDataStoreController(BGVerticalScaleOptions bgOptions) {
 		this.bgOptions = bgOptions;
@@ -60,7 +62,7 @@ public class VoltDbDataStoreController extends DataStoreControllerImpl {
 		while (true) {
 			try {
 				Thread.currentThread().sleep(5000);
-				org.voltdb.client.Client client = ClientFactory.createClient();
+				client = ClientFactory.createClient();
 				client.createConnection("localhost");
 				break;
 			} catch (InterruptedException e1) {
@@ -85,15 +87,20 @@ public class VoltDbDataStoreController extends DataStoreControllerImpl {
 			IOException, WorkloadParameterException, BGException,
 			UnknownDBException, WorkloadException, DBException {
 		if (bgOptions.actions.contains("-load")) {
+			String workload = bgOptions.loadWorkloads.get(0);
+			System.out.println("WORKLOAD........." + workload);
 			List<String> args = bgVerticalScalingDriver.buildArgs(
-					configuration, "-load", bgOptions.loadWorkloads.get(0));
-			bgClient.doMain(args.toArray(new String[args.size()]));
+					configuration, "-load", workload);
+			if (args.size() > 0)
+				bgClient.doMain(args.toArray(new String[args.size()]));
 		}
 		if (bgOptions.actions.contains("-t")) {
 			for (String workload : bgOptions.actionWorkloads) {
+				System.out.println("WORKLOAD........" + workload);
 				List<String> args = bgVerticalScalingDriver.buildArgs(
 						configuration, "-t", workload);
-				bgClient.doMain(args.toArray(new String[args.size()]));
+				if (args.size() > 0)
+					bgClient.doMain(args.toArray(new String[args.size()]));
 			}
 		}
 	}
