@@ -11,7 +11,7 @@ public class ViewCommentOnResource extends VoltProcedure {
 	public VoltTable[] run(int id
 
 	) throws VoltAbortException {
-		System.out.println("View Comment On Resource");
+		System.err.println("View Comment On Resource");
 		voltQueueSQL(sql, id);
 		return voltExecuteSQL();
 

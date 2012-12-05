@@ -38,7 +38,8 @@ public class VoltDbDataStoreController extends DataStoreControllerImpl {
 				+ bgOptions.getBGParameter("datastore_library_path"),
 				"-Dlog4j.configuration=file://"
 						+ bgOptions.getBGParameter("datastore_config_path"),
-				"org.voltdb.VoltDB", "create", "host localhost",
+				"org.voltdb.VoltDB", "create", "host "
+						+ bgOptions.getBGParameter("bg_param_db_remote_url"),
 				"catalog bg.jar", "deployment", "deployment_" + cores_ + ".xml");
 
 		Map<String, String> env = processBuilder.environment();
@@ -63,7 +64,8 @@ public class VoltDbDataStoreController extends DataStoreControllerImpl {
 			try {
 				Thread.currentThread().sleep(5000);
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(bgOptions
+						.getBGParameter("bg_param_db_remote_url"));
 				break;
 			} catch (InterruptedException e1) {
 				e1.printStackTrace();

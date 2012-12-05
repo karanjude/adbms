@@ -28,10 +28,13 @@ import edu.bg.verticalscaling.util.JavaOptionParser;
 
 public class BGVerticalScalingDriver {
 	private final BGVerticalScaleOptions options;
+	private final List<String> varargs;
+	private boolean isServer;
 
 	public BGVerticalScalingDriver(BGVerticalScaleOptions options,
 			List<String> varargs) {
 		this.options = options;
+		this.varargs = varargs;
 	}
 
 	public static void main(String[] args) {
@@ -47,12 +50,27 @@ public class BGVerticalScalingDriver {
 
 		BGVerticalScalingDriver driver = new BGVerticalScalingDriver(options,
 				varargs);
-		driver.runVerticalScalingBenchmark();
+		if (driver.isRunningInServerMode()) {
+			BGVerticalDataStortController controller = new BGVerticalDataStortController(
+					options);
+			controller.start();
+		} else {
+			driver.runVerticalScalingBenchmark();
+		}
+	}
+
+	private boolean isRunningInServerMode() {
+		if (varargs.get(0).equals("-server")) {
+			isServer = true;
+		} else {
+			isServer = false;
+		}
+		return isServer;
 	}
 
 	private void runVerticalScalingBenchmark() {
 		List<List<String>> sets = new ArrayList<List<String>>();
-		//sets.add(options.actionWorkloads);
+		// sets.add(options.actionWorkloads);
 		sets.add(options.ram);
 		sets.add(options.cores);
 		sets.add(options.threads);
@@ -119,15 +137,11 @@ public class BGVerticalScalingDriver {
 		Client bgClient = new Client();
 		boolean exit = false;
 
+		BGVerticalClient client = new BGVerticalClient();
+		client.startDataStore(options.datastore, configuration.ram,
+				configuration.cores, configuration.threads);
 		DataStoreController dataStoreController = getDataStoreController(options);
-
 		try {
-			dataStoreController.startDataStoreWithConfiguration(
-					configuration.ram, configuration.cores,
-					configuration.threads);
-			dataStoreController.waitForDataStoreToStart();
-			System.out.println("Data Store started");
-
 			dataStoreController.benchmark(bgClient, configuration, this);
 		} catch (ArgumentException e) {
 			exit = true;
@@ -154,9 +168,11 @@ public class BGVerticalScalingDriver {
 			exit = true;
 			e.printStackTrace();
 		} finally {
-			dataStoreController.stopDataStoreWithConfiguration();
-			if (exit)
+			client.stopDataStore(options.datastore);
+			if (exit) {
+				client.exit();
 				System.exit(-1);
+			}
 		}
 	}
 

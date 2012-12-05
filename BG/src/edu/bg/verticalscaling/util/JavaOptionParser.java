@@ -31,7 +31,7 @@ public class JavaOptionParser {
 	public static BGVerticalScaleOptions buildOptionMap(String[] args) {
 		Properties properties = new Properties();
 		try {
-			properties.load(new FileInputStream(args[0]));
+			properties.load(new FileInputStream(args[1]));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

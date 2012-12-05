@@ -44,8 +44,11 @@ public class voltdbClient extends DB {
 	org.voltdb.client.Client client = null;
 	Properties props = null;
 	String path = "";
+	private String serverUrl;
 
 	public void init() {
+		props = getProperties();
+		serverUrl = props.getProperty("db.url", "");
 	}
 
 	@Override
@@ -56,7 +59,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			ClientResponse response;
@@ -101,13 +104,12 @@ public class voltdbClient extends DB {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		// TODO Auto-generated method stub
 		HashMap<String, String> stats = new HashMap<String, String>();
 		//System.out.println("getInitialStats");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			ClientResponse response1 = client.callProcedure("SelectUserCount");
@@ -172,7 +174,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			client.callProcedure("InsertFriends", friendid1, friendid2, 2);
@@ -343,7 +345,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 			if (entitySet.equals("users")) {
 				ArrayList<String> tempList = new ArrayList<String>();
@@ -412,7 +414,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			// confirmed friend count
@@ -554,7 +556,7 @@ public class voltdbClient extends DB {
 			if (null == client) {
 				client = ClientFactory.createClient();
 				try {
-					client.createConnection("localhost");
+					client.createConnection(serverUrl);
 				} catch (UnknownHostException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -635,7 +637,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 			if (insertImage) {
 				response = client.callProcedure("ViewFriendReqPic",
@@ -693,7 +695,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			client.callProcedure("AcceptFriend", invitorID, inviteeID);
@@ -712,7 +714,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			client.callProcedure("DeleteFriendship", invitorID, inviteeID);
@@ -731,7 +733,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 			client.callProcedure("InsertPendingFriends", invitorID, inviteeID,
 					1);
@@ -753,7 +755,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			ClientResponse response;
@@ -799,7 +801,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			ClientResponse response;
@@ -844,7 +846,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 			ArrayList<String> tempList = new ArrayList<String>();
 			HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
@@ -877,7 +879,7 @@ public class voltdbClient extends DB {
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
-				client.createConnection("localhost");
+				client.createConnection(serverUrl);
 			}
 
 			client.callProcedure("ThawFriendship", friendid1, friendid2,
