@@ -54,13 +54,10 @@ public class voltdbClient extends DB {
 	@Override
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
-		//System.out.println("getCreatedResources");
+		// System.out.println("getCreatedResources");
 
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			ClientResponse response;
 			response = client.callProcedure("GetCreatedResources", creatorID);
@@ -102,15 +99,24 @@ public class voltdbClient extends DB {
 		return 0;
 	}
 
+	private void getClient() throws UnknownHostException {
+		while (null == client) {
+			client = ClientFactory.createClient();
+			try {
+				client.createConnection(serverUrl);
+			} catch (IOException e) {
+				client = null;
+				e.printStackTrace();
+			}
+		}
+	}
+
 	@Override
 	public HashMap<String, String> getInitialStats() {
 		HashMap<String, String> stats = new HashMap<String, String>();
-		//System.out.println("getInitialStats");
+		// System.out.println("getInitialStats");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			ClientResponse response1 = client.callProcedure("SelectUserCount");
 			VoltTable results[] = response1.getResults();
@@ -170,12 +176,9 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int CreateFriendship(int friendid1, int friendid2) {
-		//System.out.println("CreateFriendship");
+		// System.out.println("CreateFriendship");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			client.callProcedure("InsertFriends", friendid1, friendid2, 2);
 		} catch (IOException e) {
@@ -201,47 +204,49 @@ public class voltdbClient extends DB {
 			if (Boolean.parseBoolean(props.getProperty(
 					Client.INSERT_IMAGE_PROPERTY,
 					Client.INSERT_IMAGE_PROPERTY_DEFAULT))) {
-				builder.addLiteralSchema("CREATE TABLE Users ("
-						+ "  userid INTEGER NOT NULL,"
-						+ "  username VARCHAR(255),"
-						+ "  pw VARCHAR(255),"
-						+ "  fname VARCHAR(255),"
-						+ "  lname VARCHAR(255),"
-						+ "  gender VARCHAR(255),"
-						+ "  dob VARCHAR(255),"
-						+ "  jdate VARCHAR(255),"
-						+ "  ldate VARCHAR(255),"
-						+ "  address VARCHAR(255),"
-						+ "  email VARCHAR(255),"
-						+ "  tel VARCHAR(255),"
-						+ "  confirmedFriends INTEGER,"
-						+ "  pendingFriends INTEGER,"
-						+ "  resourceCount INTEGER,"
-						+ "  pic VARBINARY(950000),"
-						+ "  tpic VARBINARY(520000), "
-						+ "  PRIMARY KEY (userid)"
-						+ "); "
-						+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
+				builder
+						.addLiteralSchema("CREATE TABLE Users ("
+								+ "  userid INTEGER NOT NULL,"
+								+ "  username VARCHAR(255),"
+								+ "  pw VARCHAR(255),"
+								+ "  fname VARCHAR(255),"
+								+ "  lname VARCHAR(255),"
+								+ "  gender VARCHAR(255),"
+								+ "  dob VARCHAR(255),"
+								+ "  jdate VARCHAR(255),"
+								+ "  ldate VARCHAR(255),"
+								+ "  address VARCHAR(255),"
+								+ "  email VARCHAR(255),"
+								+ "  tel VARCHAR(255),"
+								+ "  confirmedFriends INTEGER,"
+								+ "  pendingFriends INTEGER,"
+								+ "  resourceCount INTEGER,"
+								+ "  pic VARBINARY(950000),"
+								+ "  tpic VARBINARY(520000), "
+								+ "  PRIMARY KEY (userid)"
+								+ "); "
+								+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
 			} else {
-				builder.addLiteralSchema("CREATE TABLE Users ("
-						+ "  userid INTEGER NOT NULL,"
-						+ "  username VARCHAR(255),"
-						+ "  pw VARCHAR(255),"
-						+ "  fname VARCHAR(255),"
-						+ "  lname VARCHAR(255),"
-						+ "  gender VARCHAR(255),"
-						+ "  dob VARCHAR(255),"
-						+ "  jdate VARCHAR(255),"
-						+ "  ldate VARCHAR(255),"
-						+ "  address VARCHAR(255),"
-						+ "  email VARCHAR(255),"
-						+ "  tel VARCHAR(255),"
-						+ "  confirmedFriends INTEGER,"
-						+ "  pendingFriends INTEGER,"
-						+ "  resourceCount INTEGER,"
-						+ "  PRIMARY KEY (userid)"
-						+ "); "
-						+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
+				builder
+						.addLiteralSchema("CREATE TABLE Users ("
+								+ "  userid INTEGER NOT NULL,"
+								+ "  username VARCHAR(255),"
+								+ "  pw VARCHAR(255),"
+								+ "  fname VARCHAR(255),"
+								+ "  lname VARCHAR(255),"
+								+ "  gender VARCHAR(255),"
+								+ "  dob VARCHAR(255),"
+								+ "  jdate VARCHAR(255),"
+								+ "  ldate VARCHAR(255),"
+								+ "  address VARCHAR(255),"
+								+ "  email VARCHAR(255),"
+								+ "  tel VARCHAR(255),"
+								+ "  confirmedFriends INTEGER,"
+								+ "  pendingFriends INTEGER,"
+								+ "  resourceCount INTEGER,"
+								+ "  PRIMARY KEY (userid)"
+								+ "); "
+								+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
 			}
 
 			builder.addLiteralSchema("CREATE TABLE Resource ("
@@ -312,9 +317,8 @@ public class voltdbClient extends DB {
 		try {
 
 			if (client != null) {
-
 				client.close();
-
+				client = null;
 			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -341,12 +345,9 @@ public class voltdbClient extends DB {
 	public int insert(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage,
 			int imageSize) {
-		//System.out.println("insert");
+		// System.out.println("insert");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 			if (entitySet.equals("users")) {
 				ArrayList<String> tempList = new ArrayList<String>();
 				for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
@@ -365,18 +366,18 @@ public class voltdbClient extends DB {
 					FileInputStream fist = new FileInputStream(thumbimage);
 					byte fileContent2[] = new byte[(int) image.length()];
 					fist.read(fileContent2);
-					client.callProcedure("InsertUserPic", entityPK,
-							tempList.get(0), tempList.get(1), tempList.get(2),
-							tempList.get(3), tempList.get(4), tempList.get(5),
-							tempList.get(6), tempList.get(7), tempList.get(8),
-							tempList.get(9), tempList.get(10), 0, 0, 0,
-							fileContent, fileContent2);
+					client.callProcedure("InsertUserPic", entityPK, tempList
+							.get(0), tempList.get(1), tempList.get(2), tempList
+							.get(3), tempList.get(4), tempList.get(5), tempList
+							.get(6), tempList.get(7), tempList.get(8), tempList
+							.get(9), tempList.get(10), 0, 0, 0, fileContent,
+							fileContent2);
 				} else {
-					client.callProcedure("InsertUser", entityPK,
-							tempList.get(0), tempList.get(1), tempList.get(2),
-							tempList.get(3), tempList.get(4), tempList.get(5),
-							tempList.get(6), tempList.get(7), tempList.get(8),
-							tempList.get(9), tempList.get(10), 0, 0, 0);
+					client.callProcedure("InsertUser", entityPK, tempList
+							.get(0), tempList.get(1), tempList.get(2), tempList
+							.get(3), tempList.get(4), tempList.get(5), tempList
+							.get(6), tempList.get(7), tempList.get(8), tempList
+							.get(9), tempList.get(10), 0, 0, 0);
 				}
 			} else if (entitySet.equals("resources")) {
 
@@ -386,9 +387,9 @@ public class voltdbClient extends DB {
 					tempList.add(field);
 				}
 
-				client.callProcedure("InsertResources", entityPK,
-						tempList.get(0), tempList.get(1), tempList.get(2),
-						tempList.get(3), tempList.get(4));
+				client.callProcedure("InsertResources", entityPK, tempList
+						.get(0), tempList.get(1), tempList.get(2), tempList
+						.get(3), tempList.get(4));
 
 			}
 
@@ -410,12 +411,9 @@ public class voltdbClient extends DB {
 	public int getUserProfile(int requesterID, int profileOwnerID,
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
-		//System.out.println("getUserProfile");
+		// System.out.println("getUserProfile");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			// confirmed friend count
 			ClientResponse response1 = null;
@@ -434,9 +432,8 @@ public class voltdbClient extends DB {
 			VoltTable resultTable = results[0];
 
 			VoltTableRow row = resultTable.fetchRow(0);
-			result.put("friendcount",
-					new StringByteIterator(row.get(0, VoltType.INTEGER)
-							.toString()));
+			result.put("friendcount", new StringByteIterator(row.get(0,
+					VoltType.INTEGER).toString()));
 
 			// pending friend count
 			if (requesterID == profileOwnerID) {
@@ -456,9 +453,8 @@ public class voltdbClient extends DB {
 				VoltTable resultTable2 = results2[0];
 
 				VoltTableRow row2 = resultTable2.fetchRow(0);
-				result.put("pendingcount",
-						new StringByteIterator(row2.get(0, VoltType.INTEGER)
-								.toString()));
+				result.put("pendingcount", new StringByteIterator(row2.get(0,
+						VoltType.INTEGER).toString()));
 
 			}
 
@@ -479,9 +475,8 @@ public class voltdbClient extends DB {
 			VoltTable resultTable3 = results3[0];
 
 			VoltTableRow row3 = resultTable3.fetchRow(0);
-			result.put("resourcecount",
-					new StringByteIterator(row3.get(0, VoltType.INTEGER)
-							.toString()));
+			result.put("resourcecount", new StringByteIterator(row3.get(0,
+					VoltType.INTEGER).toString()));
 
 			// profile details
 			ClientResponse response4 = null;
@@ -517,14 +512,16 @@ public class voltdbClient extends DB {
 			for (int i = 0; i < coloumnCount; i++) {
 				String columnName = resultTable4.getColumnName(i);
 				if (i == 11) {
-					valueString = resultTable4.fetchRow(0)
-							.get(11, VoltType.VARBINARY).toString();
+					valueString = resultTable4.fetchRow(0).get(11,
+							VoltType.VARBINARY).toString();
 					result.put(columnName, new StringByteIterator(valueString));
 				} else {
 					if (i == 0) {
-						valueInt = resultTable4.fetchRow(0)
-								.get(0, VoltType.INTEGER).toString();
-						result.put(columnName, new StringByteIterator(valueInt));
+						valueInt = resultTable4.fetchRow(0).get(0,
+								VoltType.INTEGER).toString();
+						result
+								.put(columnName, new StringByteIterator(
+										valueInt));
 					} else {
 						valueString = resultTable4.fetchRow(0).getString(i);
 						result.put(columnName, new StringByteIterator(
@@ -551,7 +548,7 @@ public class voltdbClient extends DB {
 	public int getListOfFriends(int requesterID, int profileOwnerID,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
-		//System.out.println("getListOfFriends");
+		// System.out.println("getListOfFriends");
 		try {
 			if (null == client) {
 				client = ClientFactory.createClient();
@@ -601,14 +598,14 @@ public class voltdbClient extends DB {
 				for (int j = 0; j < coloumnCount; j++) {
 					String columnName = resultTable.getColumnName(j);
 					if (j == 13) {
-						valueString = resultTable.fetchRow(i)
-								.get(j, VoltType.VARBINARY).toString();
+						valueString = resultTable.fetchRow(i).get(j,
+								VoltType.VARBINARY).toString();
 						values.put(columnName, new StringByteIterator(
 								valueString));
 					} else {
 						if (j == 0 || j == 1 || j == 2) {
-							valueInt = resultTable.fetchRow(i)
-									.get(j, VoltType.INTEGER).toString();
+							valueInt = resultTable.fetchRow(i).get(j,
+									VoltType.INTEGER).toString();
 							values.put(columnName, new StringByteIterator(
 									valueInt));
 						} else {
@@ -632,13 +629,10 @@ public class voltdbClient extends DB {
 	public int viewPendingRequests(int profileOwnerID,
 			Vector<HashMap<String, ByteIterator>> valuess, boolean insertImage,
 			boolean testMode) {
-		//System.out.println("viewPendingRequests");
+		// System.out.println("viewPendingRequests");
 		ClientResponse response;
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 			if (insertImage) {
 				response = client.callProcedure("ViewFriendReqPic",
 						profileOwnerID);
@@ -656,8 +650,8 @@ public class voltdbClient extends DB {
 				VoltTableRow row = resultTable.fetchRow(i);
 				for (int j = 0; j < resultTable.getColumnCount(); j++) {
 					if (j == 13) {
-						valueString = resultTable.fetchRow(i)
-								.get(13, VoltType.VARBINARY).toString();
+						valueString = resultTable.fetchRow(i).get(13,
+								VoltType.VARBINARY).toString();
 						values.put(resultTable.getColumnName(j),
 								new StringByteIterator(valueString));
 					} else {
@@ -691,12 +685,9 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int acceptFriendRequest(int invitorID, int inviteeID) {
-		//System.out.println("acceptFriendRequest");
+		// System.out.println("acceptFriendRequest");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			client.callProcedure("AcceptFriend", invitorID, inviteeID);
 
@@ -710,12 +701,9 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int rejectFriendRequest(int invitorID, int inviteeID) {
-		//System.out.println("rejectFriendRequest");
+		// System.out.println("rejectFriendRequest");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			client.callProcedure("DeleteFriendship", invitorID, inviteeID);
 
@@ -729,12 +717,9 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int inviteFriends(int invitorID, int inviteeID) {
-		//System.out.println("inviteFriends");
+		// System.out.println("inviteFriends");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 			client.callProcedure("InsertPendingFriends", invitorID, inviteeID,
 					1);
 
@@ -751,12 +736,9 @@ public class voltdbClient extends DB {
 	@Override
 	public int getTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
-		//System.out.println("getTopKResources");
+		// System.out.println("getTopKResources");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			ClientResponse response;
 			response = client.callProcedure("ViewTopKResources",
@@ -797,12 +779,9 @@ public class voltdbClient extends DB {
 	@Override
 	public int getResourceComments(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
-		//System.out.println("getResourceComments");
+		// System.out.println("getResourceComments");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			ClientResponse response;
 			response = client
@@ -842,12 +821,9 @@ public class voltdbClient extends DB {
 	@Override
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID) {
-		//System.out.println("postCommentOnResource");
+		// System.out.println("postCommentOnResource");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 			ArrayList<String> tempList = new ArrayList<String>();
 			HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
 			for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
@@ -856,8 +832,8 @@ public class voltdbClient extends DB {
 			}
 
 			client.callProcedure("PostCommentOnResource", profileOwnerID,
-					commentCreatorID, resourceID, tempList.get(1),
-					tempList.get(2), tempList.get(0));
+					commentCreatorID, resourceID, tempList.get(1), tempList
+							.get(2), tempList.get(0));
 
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
@@ -875,12 +851,9 @@ public class voltdbClient extends DB {
 
 	@Override
 	public int unFriendFriend(int friendid1, int friendid2) {
-		//System.out.println("unFriendFriend");
+		// System.out.println("unFriendFriend");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				client.createConnection(serverUrl);
-			}
+			getClient();
 
 			client.callProcedure("ThawFriendship", friendid1, friendid2,
 					friendid2, friendid1);

@@ -13,7 +13,7 @@ public class BGVerticalClient {
 	private BGService.Client client;
 
 	public BGVerticalClient() {
-		transport = new TSocket("0.0.0.0", 7911);
+		transport = new TSocket("192.168.2.196", 7911);
 		protocol = new TBinaryProtocol(transport);
 		client = new BGService.Client(protocol);
 	}
