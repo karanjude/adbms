@@ -100,13 +100,16 @@ public class voltdbClient extends DB {
 	}
 
 	private void getClient() throws UnknownHostException {
-		while (null == client) {
+		if (null == client) {
 			client = ClientFactory.createClient();
-			try {
-				client.createConnection(serverUrl);
-			} catch (IOException e) {
-				client = null;
-				e.printStackTrace();
+			boolean connectionReset = true;
+			while (connectionReset) {
+				try {
+					client.createConnection(serverUrl);
+					connectionReset = false;
+				} catch (IOException e) {
+					connectionReset = true;
+				}
 			}
 		}
 	}
@@ -204,49 +207,47 @@ public class voltdbClient extends DB {
 			if (Boolean.parseBoolean(props.getProperty(
 					Client.INSERT_IMAGE_PROPERTY,
 					Client.INSERT_IMAGE_PROPERTY_DEFAULT))) {
-				builder
-						.addLiteralSchema("CREATE TABLE Users ("
-								+ "  userid INTEGER NOT NULL,"
-								+ "  username VARCHAR(255),"
-								+ "  pw VARCHAR(255),"
-								+ "  fname VARCHAR(255),"
-								+ "  lname VARCHAR(255),"
-								+ "  gender VARCHAR(255),"
-								+ "  dob VARCHAR(255),"
-								+ "  jdate VARCHAR(255),"
-								+ "  ldate VARCHAR(255),"
-								+ "  address VARCHAR(255),"
-								+ "  email VARCHAR(255),"
-								+ "  tel VARCHAR(255),"
-								+ "  confirmedFriends INTEGER,"
-								+ "  pendingFriends INTEGER,"
-								+ "  resourceCount INTEGER,"
-								+ "  pic VARBINARY(950000),"
-								+ "  tpic VARBINARY(520000), "
-								+ "  PRIMARY KEY (userid)"
-								+ "); "
-								+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
+				builder.addLiteralSchema("CREATE TABLE Users ("
+						+ "  userid INTEGER NOT NULL,"
+						+ "  username VARCHAR(255),"
+						+ "  pw VARCHAR(255),"
+						+ "  fname VARCHAR(255),"
+						+ "  lname VARCHAR(255),"
+						+ "  gender VARCHAR(255),"
+						+ "  dob VARCHAR(255),"
+						+ "  jdate VARCHAR(255),"
+						+ "  ldate VARCHAR(255),"
+						+ "  address VARCHAR(255),"
+						+ "  email VARCHAR(255),"
+						+ "  tel VARCHAR(255),"
+						+ "  confirmedFriends INTEGER,"
+						+ "  pendingFriends INTEGER,"
+						+ "  resourceCount INTEGER,"
+						+ "  pic VARBINARY(950000),"
+						+ "  tpic VARBINARY(520000), "
+						+ "  PRIMARY KEY (userid)"
+						+ "); "
+						+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
 			} else {
-				builder
-						.addLiteralSchema("CREATE TABLE Users ("
-								+ "  userid INTEGER NOT NULL,"
-								+ "  username VARCHAR(255),"
-								+ "  pw VARCHAR(255),"
-								+ "  fname VARCHAR(255),"
-								+ "  lname VARCHAR(255),"
-								+ "  gender VARCHAR(255),"
-								+ "  dob VARCHAR(255),"
-								+ "  jdate VARCHAR(255),"
-								+ "  ldate VARCHAR(255),"
-								+ "  address VARCHAR(255),"
-								+ "  email VARCHAR(255),"
-								+ "  tel VARCHAR(255),"
-								+ "  confirmedFriends INTEGER,"
-								+ "  pendingFriends INTEGER,"
-								+ "  resourceCount INTEGER,"
-								+ "  PRIMARY KEY (userid)"
-								+ "); "
-								+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
+				builder.addLiteralSchema("CREATE TABLE Users ("
+						+ "  userid INTEGER NOT NULL,"
+						+ "  username VARCHAR(255),"
+						+ "  pw VARCHAR(255),"
+						+ "  fname VARCHAR(255),"
+						+ "  lname VARCHAR(255),"
+						+ "  gender VARCHAR(255),"
+						+ "  dob VARCHAR(255),"
+						+ "  jdate VARCHAR(255),"
+						+ "  ldate VARCHAR(255),"
+						+ "  address VARCHAR(255),"
+						+ "  email VARCHAR(255),"
+						+ "  tel VARCHAR(255),"
+						+ "  confirmedFriends INTEGER,"
+						+ "  pendingFriends INTEGER,"
+						+ "  resourceCount INTEGER,"
+						+ "  PRIMARY KEY (userid)"
+						+ "); "
+						+ "CREATE INDEX i2 ON Users (confirmedFriends,pendingFriends,resourceCount);");
 			}
 
 			builder.addLiteralSchema("CREATE TABLE Resource ("
@@ -366,18 +367,18 @@ public class voltdbClient extends DB {
 					FileInputStream fist = new FileInputStream(thumbimage);
 					byte fileContent2[] = new byte[(int) image.length()];
 					fist.read(fileContent2);
-					client.callProcedure("InsertUserPic", entityPK, tempList
-							.get(0), tempList.get(1), tempList.get(2), tempList
-							.get(3), tempList.get(4), tempList.get(5), tempList
-							.get(6), tempList.get(7), tempList.get(8), tempList
-							.get(9), tempList.get(10), 0, 0, 0, fileContent,
-							fileContent2);
+					client.callProcedure("InsertUserPic", entityPK,
+							tempList.get(0), tempList.get(1), tempList.get(2),
+							tempList.get(3), tempList.get(4), tempList.get(5),
+							tempList.get(6), tempList.get(7), tempList.get(8),
+							tempList.get(9), tempList.get(10), 0, 0, 0,
+							fileContent, fileContent2);
 				} else {
-					client.callProcedure("InsertUser", entityPK, tempList
-							.get(0), tempList.get(1), tempList.get(2), tempList
-							.get(3), tempList.get(4), tempList.get(5), tempList
-							.get(6), tempList.get(7), tempList.get(8), tempList
-							.get(9), tempList.get(10), 0, 0, 0);
+					client.callProcedure("InsertUser", entityPK,
+							tempList.get(0), tempList.get(1), tempList.get(2),
+							tempList.get(3), tempList.get(4), tempList.get(5),
+							tempList.get(6), tempList.get(7), tempList.get(8),
+							tempList.get(9), tempList.get(10), 0, 0, 0);
 				}
 			} else if (entitySet.equals("resources")) {
 
@@ -387,9 +388,9 @@ public class voltdbClient extends DB {
 					tempList.add(field);
 				}
 
-				client.callProcedure("InsertResources", entityPK, tempList
-						.get(0), tempList.get(1), tempList.get(2), tempList
-						.get(3), tempList.get(4));
+				client.callProcedure("InsertResources", entityPK,
+						tempList.get(0), tempList.get(1), tempList.get(2),
+						tempList.get(3), tempList.get(4));
 
 			}
 
@@ -432,8 +433,9 @@ public class voltdbClient extends DB {
 			VoltTable resultTable = results[0];
 
 			VoltTableRow row = resultTable.fetchRow(0);
-			result.put("friendcount", new StringByteIterator(row.get(0,
-					VoltType.INTEGER).toString()));
+			result.put("friendcount",
+					new StringByteIterator(row.get(0, VoltType.INTEGER)
+							.toString()));
 
 			// pending friend count
 			if (requesterID == profileOwnerID) {
@@ -453,8 +455,9 @@ public class voltdbClient extends DB {
 				VoltTable resultTable2 = results2[0];
 
 				VoltTableRow row2 = resultTable2.fetchRow(0);
-				result.put("pendingcount", new StringByteIterator(row2.get(0,
-						VoltType.INTEGER).toString()));
+				result.put("pendingcount",
+						new StringByteIterator(row2.get(0, VoltType.INTEGER)
+								.toString()));
 
 			}
 
@@ -475,8 +478,9 @@ public class voltdbClient extends DB {
 			VoltTable resultTable3 = results3[0];
 
 			VoltTableRow row3 = resultTable3.fetchRow(0);
-			result.put("resourcecount", new StringByteIterator(row3.get(0,
-					VoltType.INTEGER).toString()));
+			result.put("resourcecount",
+					new StringByteIterator(row3.get(0, VoltType.INTEGER)
+							.toString()));
 
 			// profile details
 			ClientResponse response4 = null;
@@ -512,16 +516,14 @@ public class voltdbClient extends DB {
 			for (int i = 0; i < coloumnCount; i++) {
 				String columnName = resultTable4.getColumnName(i);
 				if (i == 11) {
-					valueString = resultTable4.fetchRow(0).get(11,
-							VoltType.VARBINARY).toString();
+					valueString = resultTable4.fetchRow(0)
+							.get(11, VoltType.VARBINARY).toString();
 					result.put(columnName, new StringByteIterator(valueString));
 				} else {
 					if (i == 0) {
-						valueInt = resultTable4.fetchRow(0).get(0,
-								VoltType.INTEGER).toString();
-						result
-								.put(columnName, new StringByteIterator(
-										valueInt));
+						valueInt = resultTable4.fetchRow(0)
+								.get(0, VoltType.INTEGER).toString();
+						result.put(columnName, new StringByteIterator(valueInt));
 					} else {
 						valueString = resultTable4.fetchRow(0).getString(i);
 						result.put(columnName, new StringByteIterator(
@@ -598,14 +600,14 @@ public class voltdbClient extends DB {
 				for (int j = 0; j < coloumnCount; j++) {
 					String columnName = resultTable.getColumnName(j);
 					if (j == 13) {
-						valueString = resultTable.fetchRow(i).get(j,
-								VoltType.VARBINARY).toString();
+						valueString = resultTable.fetchRow(i)
+								.get(j, VoltType.VARBINARY).toString();
 						values.put(columnName, new StringByteIterator(
 								valueString));
 					} else {
 						if (j == 0 || j == 1 || j == 2) {
-							valueInt = resultTable.fetchRow(i).get(j,
-									VoltType.INTEGER).toString();
+							valueInt = resultTable.fetchRow(i)
+									.get(j, VoltType.INTEGER).toString();
 							values.put(columnName, new StringByteIterator(
 									valueInt));
 						} else {
@@ -650,8 +652,8 @@ public class voltdbClient extends DB {
 				VoltTableRow row = resultTable.fetchRow(i);
 				for (int j = 0; j < resultTable.getColumnCount(); j++) {
 					if (j == 13) {
-						valueString = resultTable.fetchRow(i).get(13,
-								VoltType.VARBINARY).toString();
+						valueString = resultTable.fetchRow(i)
+								.get(13, VoltType.VARBINARY).toString();
 						values.put(resultTable.getColumnName(j),
 								new StringByteIterator(valueString));
 					} else {
@@ -832,8 +834,8 @@ public class voltdbClient extends DB {
 			}
 
 			client.callProcedure("PostCommentOnResource", profileOwnerID,
-					commentCreatorID, resourceID, tempList.get(1), tempList
-							.get(2), tempList.get(0));
+					commentCreatorID, resourceID, tempList.get(1),
+					tempList.get(2), tempList.get(0));
 
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
