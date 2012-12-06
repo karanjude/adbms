@@ -36,8 +36,6 @@ import java.util.Properties;
 import java.util.Scanner;
 import java.util.Vector;
 
-import com.sun.source.tree.NewClassTree;
-
 import edu.bg.verticalscaling.exceptions.WorkloadParameterException;
 import edu.usc.bg.KillThread;
 import edu.usc.bg.MonitoringThread;

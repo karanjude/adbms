@@ -137,7 +137,7 @@ public class BGVerticalScalingDriver {
 		Client bgClient = new Client();
 		boolean exit = false;
 
-		BGVerticalClient client = new BGVerticalClient();
+		BGVerticalClient client = new BGVerticalClient(options.getBGParameter(BGVerticalScaleOptions.bg_param_db_url));
 		client.startDataStore(options.datastore, configuration.ram,
 				configuration.cores, configuration.threads);
 		DataStoreController dataStoreController = getDataStoreController(options);

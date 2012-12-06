@@ -12,8 +12,8 @@ public class BGVerticalClient {
 	private TProtocol protocol;
 	private BGService.Client client;
 
-	public BGVerticalClient() {
-		transport = new TSocket("192.168.2.196", 7911);
+	public BGVerticalClient(String url) {
+		transport = new TSocket(url, 7911);
 		protocol = new TBinaryProtocol(transport);
 		client = new BGService.Client(protocol);
 	}

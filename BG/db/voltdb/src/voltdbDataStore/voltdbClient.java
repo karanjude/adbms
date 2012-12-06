@@ -89,27 +89,29 @@ public class voltdbClient extends DB {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
-			try {
-				client.close();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			closeConnection();
 		}
 		return 0;
 	}
 
+	private void closeConnection() {
+		try {
+			client.close();
+			System.out.println("closing connection");
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	private void getClient() throws UnknownHostException {
-		if (null == client) {
+		while (null == client) {
 			client = ClientFactory.createClient();
-			boolean connectionReset = true;
-			while (connectionReset) {
-				try {
-					client.createConnection(serverUrl);
-					connectionReset = false;
-				} catch (IOException e) {
-					connectionReset = true;
-				}
+			try {
+				client.createConnection(serverUrl);
+			} catch (IOException e) {
+				client = null;
+				System.out.println("could not establish connection");
 			}
 		}
 	}
@@ -172,6 +174,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return stats;
@@ -188,6 +192,8 @@ public class voltdbClient extends DB {
 			e.printStackTrace();
 		} catch (ProcCallException e) {
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return 0;
@@ -403,6 +409,8 @@ public class voltdbClient extends DB {
 		} catch (NullPointerException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		// TODO Auto-generated method stub
 		return 0;
@@ -541,6 +549,8 @@ public class voltdbClient extends DB {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return 0;
@@ -552,18 +562,7 @@ public class voltdbClient extends DB {
 			boolean insertImage, boolean testMode) {
 		// System.out.println("getListOfFriends");
 		try {
-			if (null == client) {
-				client = ClientFactory.createClient();
-				try {
-					client.createConnection(serverUrl);
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+			getClient();
 
 			ClientResponse response = null;
 			if (insertImage) {
@@ -623,6 +622,11 @@ public class voltdbClient extends DB {
 
 		} catch (ProcCallException e) {
 			e.printStackTrace();
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -680,6 +684,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return 0;
@@ -697,6 +703,8 @@ public class voltdbClient extends DB {
 			e.printStackTrace();
 		} catch (ProcCallException e) {
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -713,6 +721,8 @@ public class voltdbClient extends DB {
 			e.printStackTrace();
 		} catch (ProcCallException e) {
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -731,6 +741,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -774,6 +786,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -816,6 +830,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 		return 0;
 	}
@@ -846,6 +862,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return 0;
@@ -866,6 +884,8 @@ public class voltdbClient extends DB {
 		} catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			closeConnection();
 		}
 
 		return 0;
