@@ -1,0 +1,14 @@
+*.class
+*~
+BG/*.class
+BG/*.txt
+BG/workloads/populateDB_*
+BG/workloads/ViewTopKResources_*
+BG/workloads/ViewTopKResources_*
+BG/workloads/ViewProfileAction_*
+BG/workloads/ViewFriendReqAction_*
+BG/workloads/ViewCommentOnResource_*
+BG/workloads/PostCommentOnResourceAction_*
+BG/workloads/ListFriendsAction_*
+BG/workloads/GetCommentOfResourceAction_*
+BG/db/voltdb/voltdb_crash*
