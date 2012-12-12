@@ -15,7 +15,6 @@
  * LICENSE file.
  */
 
-
 //author sumita barahmand
 
 package simpleRelational;
@@ -33,27 +32,31 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * A class that wraps a JDBC compliant database to allow it to be interfaced with YCSB.
- * This class extends {@link DB} and implements the database interface used by YCSB client.
- *
- * <br> Each client will have its own instance of this class. This client is
- * not thread safe.
- *
- * <br> This interface expects a schema <key> <field1> <field2> <field3> ...
- * All attributes are of type VARCHAR. All accesses are through the primary key. Therefore,
- * only one index on the primary key is needed.
- *
- * <p> The following options must be passed when using this database client.
- *
+ * A class that wraps a JDBC compliant database to allow it to be interfaced
+ * with YCSB. This class extends {@link DB} and implements the database
+ * interface used by YCSB client.
+ * 
+ * <br>
+ * Each client will have its own instance of this class. This client is not
+ * thread safe.
+ * 
+ * <br>
+ * This interface expects a schema <key> <field1> <field2> <field3> ... All
+ * attributes are of type VARCHAR. All accesses are through the primary key.
+ * Therefore, only one index on the primary key is needed.
+ * 
+ * <p>
+ * The following options must be passed when using this database client.
+ * 
  * <ul>
  * <li><b>db.driver</b> The JDBC driver class to use.</li>
  * <li><b>db.url</b> The Database connection URL.</li>
  * <li><b>db.user</b> User name for the connection.</li>
  * <li><b>db.passwd</b> Password for the connection.</li>
  * </ul>
- *
  * 
- *
+ * 
+ * 
  */
 public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 
@@ -81,35 +84,38 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 	private static int GETRESCMT_STMT = 16;
 	private static int POSTCMT_STMT = 17;
 	private static int INSFRND_STMT = 18;
-	
 
-	
-	private PreparedStatement createAndCacheStatement(int stmttype, String query) throws SQLException{
+	private PreparedStatement createAndCacheStatement(int stmttype, String query)
+			throws SQLException {
 		PreparedStatement newStatement = conn.prepareStatement(query);
-		PreparedStatement stmt = newCachedStatements.putIfAbsent(stmttype, newStatement);
-		if (stmt == null) return newStatement;
-		else return stmt;
+		PreparedStatement stmt = newCachedStatements.putIfAbsent(stmttype,
+				newStatement);
+		if (stmt == null)
+			return newStatement;
+		else
+			return stmt;
 	}
-	
-	
-		private void cleanupAllConnections() {
+
+	private void cleanupAllConnections() {
 		try {
-			//close all cached prepare statements
+			// close all cached prepare statements
 			Set<Integer> statementTypes = newCachedStatements.keySet();
 			Iterator<Integer> it = statementTypes.iterator();
-			while(it.hasNext()){
+			while (it.hasNext()) {
 				int stmtType = it.next();
-				if(newCachedStatements.get(stmtType) != null) newCachedStatements.get(stmtType).close();
+				if (newCachedStatements.get(stmtType) != null)
+					newCachedStatements.get(stmtType).close();
 			}
-			if(conn != null )conn.close();
+			if (conn != null)
+				conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace(System.out);
 		}
 	}
 
 	/**
-	 * Initialize the database connection and set it up for sending requests to the database.
-	 * This must be called once per client.
+	 * Initialize the database connection and set it up for sending requests to
+	 * the database. This must be called once per client.
 	 * 
 	 */
 	@Override
@@ -123,20 +129,22 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		String user = props.getProperty(CONNECTION_USER, DEFAULT_PROP);
 		String passwd = props.getProperty(CONNECTION_PASSWD, DEFAULT_PROP);
 		String driver = props.getProperty(DRIVER_CLASS);
-		imagepath = props.getProperty(Client.IMAGE_PATH_PROPERTY, Client.IMAGE_PATH_PROPERTY_DEFAULT);
+		imagepath = props.getProperty(Client.IMAGE_PATH_PROPERTY,
+				Client.IMAGE_PATH_PROPERTY_DEFAULT);
 
 		try {
 			if (driver != null) {
 				Class.forName(driver);
 			}
-			for (String url: urls.split(",")) {
+			for (String url : urls.split(",")) {
 				conn = DriverManager.getConnection(url, user, passwd);
-				// Since there is no explicit commit method in the DB interface, all
+				// Since there is no explicit commit method in the DB interface,
+				// all
 				// operations should auto commit.
 				conn.setAutoCommit(true);
 			}
 
-			//System.out.println("Using " + shardCount + " shards");
+			// System.out.println("Using " + shardCount + " shards");
 
 			newCachedStatements = new ConcurrentHashMap<Integer, PreparedStatement>();
 		} catch (ClassNotFoundException e) {
@@ -158,71 +166,79 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 	}
 
 	@Override
-	public int insert(String tableName, String key, HashMap<String, ByteIterator> values, boolean insertImage, int imageSize) {
+	public int insert(String tableName, String key,
+			HashMap<String, ByteIterator> values, boolean insertImage,
+			int imageSize) {
 		if (tableName == null) {
 			return -1;
 		}
 		if (key == null) {
 			return -1;
 		}
-		ResultSet rs =null;
+		ResultSet rs = null;
 		try {
 			String query;
 			int numFields = values.size();
-			//for the additional pic and tpic columns
-			if(tableName.equalsIgnoreCase("users") && insertImage)
-				numFields = numFields+2;
-			query = "INSERT INTO "+tableName+" VALUES (";
-			for(int j=0; j<=numFields; j++){
-				if(j==(numFields)){
-					query+="?)";
+			// for the additional pic and tpic columns
+			if (tableName.equalsIgnoreCase("users") && insertImage)
+				numFields = numFields + 2;
+			query = "INSERT INTO " + tableName + " VALUES (";
+			for (int j = 0; j <= numFields; j++) {
+				if (j == (numFields)) {
+					query += "?)";
 					break;
-				}else
-					query+="?,";
+				} else
+					query += "?,";
 			}
 
 			preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setString(1, key);
-			int cnt=2;
+			int cnt = 2;
 			for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
 				String field = entry.getValue().toString();
 				preparedStatement.setString(cnt, field);
 				cnt++;
 			}
-			if(tableName.equalsIgnoreCase("users") && insertImage){
-				File image = new File(imagepath+"userpic"+imageSize+".bmp"); 
+			if (tableName.equalsIgnoreCase("users") && insertImage) {
+				File image = new File(imagepath + "userpic" + imageSize
+						+ ".bmp");
 				FileInputStream fis = new FileInputStream(image);
-				preparedStatement.setBinaryStream(numFields, (InputStream)fis, (int)(image.length()));
-				File thumbimage = new File(imagepath+"userpic1.bmp");  //this is always the thumbnail
+				preparedStatement.setBinaryStream(numFields, (InputStream) fis,
+						(int) (image.length()));
+				File thumbimage = new File(imagepath + "userpic1.bmp"); // this
+																		// is
+																		// always
+																		// the
+																		// thumbnail
 				FileInputStream fist = new FileInputStream(thumbimage);
-				preparedStatement.setBinaryStream(numFields+1, (InputStream)fist, (int)(thumbimage.length()));
+				preparedStatement.setBinaryStream(numFields + 1,
+						(InputStream) fist, (int) (thumbimage.length()));
 			}
 			rs = preparedStatement.executeQuery();
-			/*int numFields = values.size();
-			StatementType type = new StatementType(StatementType.Type.INSERT, tableName, numFields, getShardIndexByKey(key));
-			PreparedStatement insertStatement = cachedStatements.get(type);
-			if (insertStatement == null) {
-				insertStatement = createAndCacheInsertStatement(type, key);
-			}
-			insertStatement.setString(1, key);
-			int index = 2;
-			for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-				String field = entry.getValue().toString();
-				insertStatement.setString(index++, field);
-			}
-			int result = insertStatement.executeUpdate();
-			if (result == 1) return SUCCESS;
-			else return 1;*/
+			/*
+			 * int numFields = values.size(); StatementType type = new
+			 * StatementType(StatementType.Type.INSERT, tableName, numFields,
+			 * getShardIndexByKey(key)); PreparedStatement insertStatement =
+			 * cachedStatements.get(type); if (insertStatement == null) {
+			 * insertStatement = createAndCacheInsertStatement(type, key); }
+			 * insertStatement.setString(1, key); int index = 2; for
+			 * (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
+			 * String field = entry.getValue().toString();
+			 * insertStatement.setString(index++, field); } int result =
+			 * insertStatement.executeUpdate(); if (result == 1) return SUCCESS;
+			 * else return 1;
+			 */
 		} catch (SQLException e) {
-			System.out.println("Error in processing insert to table: " + tableName + e);
+			System.out.println("Error in processing insert to table: "
+					+ tableName + e);
 			return -1;
 		} catch (FileNotFoundException e) {
 			e.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.close();
 			} catch (SQLException e) {
 				e.printStackTrace(System.out);
@@ -233,162 +249,175 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 
 	@Override
 	public int getUserProfile(int requesterID, int profileOwnerID,
-			HashMap<String, ByteIterator> result, boolean insertImage, boolean testMode) {
+			HashMap<String, ByteIterator> result, boolean insertImage,
+			boolean testMode) {
 
 		ResultSet rs = null;
 		int retVal = SUCCESS;
-		if(requesterID < 0 || profileOwnerID < 0)
+		if (requesterID < 0 || profileOwnerID < 0)
 			return -1;
 
-		String query="";
-
+		String query = "";
 
 		try {
-			//friend count
+			// friend count
 			query = "SELECT count(*) FROM  friendship WHERE (inviterID = ? ) AND status = 2 ";
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(GETFRNDCNT_STMT)) == null)
-				preparedStatement = createAndCacheStatement(GETFRNDCNT_STMT, query);
-			
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(GETFRNDCNT_STMT)) == null)
+				preparedStatement = createAndCacheStatement(GETFRNDCNT_STMT,
+						query);
+
 			preparedStatement.setInt(1, profileOwnerID);
 			rs = preparedStatement.executeQuery();
 			if (rs.next())
-				result.put("FriendCount", new StringByteIterator(rs.getString(1))) ;
+				result.put("FriendCount",
+						new StringByteIterator(rs.getString(1)));
 			else
-				result.put("FriendCount", new StringByteIterator("0")) ;
+				result.put("FriendCount", new StringByteIterator("0"));
 
-
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				e.printStackTrace(System.out);
 				retVal = -2;
 			}
 		}
 
-		//pending friend request count
-		//if owner viwing her own profile, she can view her pending friend requests
-		if(requesterID == profileOwnerID){
+		// pending friend request count
+		// if owner viwing her own profile, she can view her pending friend
+		// requests
+		if (requesterID == profileOwnerID) {
 			query = "SELECT count(*) FROM  friendship WHERE inviteeID = ? AND status = 1 ";
 			try {
-				//preparedStatement = conn.prepareStatement(query);
-				if((preparedStatement = newCachedStatements.get(GETPENDCNT_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETPENDCNT_STMT, query);
-				
+				// preparedStatement = conn.prepareStatement(query);
+				if ((preparedStatement = newCachedStatements
+						.get(GETPENDCNT_STMT)) == null)
+					preparedStatement = createAndCacheStatement(
+							GETPENDCNT_STMT, query);
+
 				preparedStatement.setInt(1, profileOwnerID);
 				rs = preparedStatement.executeQuery();
 				if (rs.next())
-					result.put("PendingCount", new StringByteIterator(rs.getString(1))) ;
+					result.put("PendingCount",
+							new StringByteIterator(rs.getString(1)));
 				else
-					result.put("PendingCount", new StringByteIterator("0")) ;
-			}catch(SQLException sx){
+					result.put("PendingCount", new StringByteIterator("0"));
+			} catch (SQLException sx) {
 				retVal = -2;
 				sx.printStackTrace(System.out);
-			}finally{
+			} finally {
 				try {
 					if (rs != null)
 						rs.close();
-					if(preparedStatement != null)
+					if (preparedStatement != null)
 						preparedStatement.clearParameters();
-						//preparedStatement.close();
+					// preparedStatement.close();
 				} catch (SQLException e) {
 					e.printStackTrace(System.out);
 					retVal = -2;
 				}
 			}
 		}
-		//resource count
+		// resource count
 		query = "SELECT count(*) FROM  resources WHERE wallUserID = ?";
 
 		try {
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(GETRESCNT_STMT)) == null)
-				preparedStatement = createAndCacheStatement(GETRESCNT_STMT, query);
-			
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(GETRESCNT_STMT)) == null)
+				preparedStatement = createAndCacheStatement(GETRESCNT_STMT,
+						query);
+
 			preparedStatement.setInt(1, profileOwnerID);
 			rs = preparedStatement.executeQuery();
 			if (rs.next())
-				result.put("ResourceCount", new StringByteIterator(rs.getString(1))) ;
+				result.put("ResourceCount",
+						new StringByteIterator(rs.getString(1)));
 			else
-				result.put("ResourceCount", new StringByteIterator("0")) ;
-		}catch(SQLException sx){
+				result.put("ResourceCount", new StringByteIterator("0"));
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
-		
+
 		try {
-			//profile details
-			if(insertImage){
+			// profile details
+			if (insertImage) {
 				query = "SELECT userid,username, fname, lname, gender, dob, jdate, ldate, address, email, tel, pic FROM  users WHERE UserID = ?";
-				if((preparedStatement = newCachedStatements.get(GETPROFILEIMG_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETPROFILEIMG_STMT, query);
-				
-			}else{
+				if ((preparedStatement = newCachedStatements
+						.get(GETPROFILEIMG_STMT)) == null)
+					preparedStatement = createAndCacheStatement(
+							GETPROFILEIMG_STMT, query);
+
+			} else {
 				query = "SELECT userid,username, fname, lname, gender, dob, jdate, ldate, address, email, tel FROM  users WHERE UserID = ?";
-				if((preparedStatement = newCachedStatements.get(GETPROFILE_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETPROFILE_STMT, query);
+				if ((preparedStatement = newCachedStatements
+						.get(GETPROFILE_STMT)) == null)
+					preparedStatement = createAndCacheStatement(
+							GETPROFILE_STMT, query);
 			}
-			//preparedStatement = conn.prepareStatement(query);
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, profileOwnerID);
 			rs = preparedStatement.executeQuery();
 			ResultSetMetaData md = rs.getMetaData();
 			int col = md.getColumnCount();
-			if(rs.next()){
-				for (int i = 1; i <= col; i++){
+			if (rs.next()) {
+				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
-					String value ="";
-					if(col_name.equalsIgnoreCase("pic") ){
+					String value = "";
+					if (col_name.equalsIgnoreCase("pic")) {
 						// Get as a BLOB
 						Blob aBlob = rs.getBlob(col_name);
-						byte[] allBytesInBlob = aBlob.getBytes(1, (int) aBlob.length());
+						byte[] allBytesInBlob = aBlob.getBytes(1,
+								(int) aBlob.length());
 						value = allBytesInBlob.toString();
-						//if test mode dump pic into a file
-						if(testMode){
-							//dump to file
-							try{
-								FileOutputStream fos = new FileOutputStream(profileOwnerID+"-proimage.bmp");
+						// if test mode dump pic into a file
+						if (testMode) {
+							// dump to file
+							try {
+								FileOutputStream fos = new FileOutputStream(
+										profileOwnerID + "-proimage.bmp");
 								fos.write(allBytesInBlob);
 								fos.close();
-							}catch(Exception ex){
+							} catch (Exception ex) {
 							}
 						}
 
-					}else
+					} else
 						value = rs.getString(col_name);
 
 					result.put(col_name, new StringByteIterator(value));
 				}
 			}
 
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
@@ -398,33 +427,36 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		return retVal;
 	}
 
-
 	@Override
 	public int getListOfFriends(int requesterID, int profileOwnerID,
-			Set<String> fields, Vector<HashMap<String, ByteIterator>> result, boolean insertImage, boolean testMode) {
+			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
+			boolean insertImage, boolean testMode) {
 
 		int retVal = SUCCESS;
 		ResultSet rs = null;
-		if(requesterID < 0 || profileOwnerID < 0)
+		if (requesterID < 0 || profileOwnerID < 0)
 			return -1;
 
-		String query ="";
-		
+		String query = "";
+
 		try {
-			if(insertImage){
+			if (insertImage) {
 				query = "SELECT userid, inviterid, inviteeid, username, fname, lname, gender, dob, jdate, ldate, address,email,tel,tpic FROM users, friendship WHERE  (inviterid=? and userid=inviteeid) and status = 2";
-				if((preparedStatement = newCachedStatements.get(GETFRNDSIMG_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETFRNDSIMG_STMT, query);
-			}else{
+				if ((preparedStatement = newCachedStatements
+						.get(GETFRNDSIMG_STMT)) == null)
+					preparedStatement = createAndCacheStatement(
+							GETFRNDSIMG_STMT, query);
+			} else {
 				query = "SELECT userid, inviterid, inviteeid, username, fname, lname, gender, dob, jdate, ldate, address,email,tel FROM users, friendship WHERE (inviterid=? and userid=inviteeid) and status = 2";
-				if((preparedStatement = newCachedStatements.get(GETFRNDS_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETFRNDS_STMT, query);
+				if ((preparedStatement = newCachedStatements.get(GETFRNDS_STMT)) == null)
+					preparedStatement = createAndCacheStatement(GETFRNDS_STMT,
+							query);
 			}
-			//preparedStatement = conn.prepareStatement(query);
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, profileOwnerID);
 			rs = preparedStatement.executeQuery();
-			int cnt =0;
-			while (rs.next()){
+			int cnt = 0;
+			while (rs.next()) {
 				cnt++;
 				HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
 				if (fields != null) {
@@ -433,215 +465,223 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 						values.put(field, new StringByteIterator(value));
 					}
 					result.add(values);
-				}else{
-					//get the number of columns and their names
-					//Statement st = conn.createStatement();
-					//ResultSet rst = st.executeQuery("SELECT * FROM users");
+				} else {
+					// get the number of columns and their names
+					// Statement st = conn.createStatement();
+					// ResultSet rst = st.executeQuery("SELECT * FROM users");
 					ResultSetMetaData md = rs.getMetaData();
 					int col = md.getColumnCount();
-					for (int i = 1; i <= col; i++){
+					for (int i = 1; i <= col; i++) {
 						String col_name = md.getColumnName(i);
-						String value="";
-						if(col_name.equalsIgnoreCase("tpic")){
+						String value = "";
+						if (col_name.equalsIgnoreCase("tpic")) {
 							// Get as a BLOB
 							Blob aBlob = rs.getBlob(col_name);
-							byte[] allBytesInBlob = aBlob.getBytes(1, (int) aBlob.length());
+							byte[] allBytesInBlob = aBlob.getBytes(1,
+									(int) aBlob.length());
 							value = allBytesInBlob.toString();
-							if(testMode){
-								//dump to file
-								try{
-									FileOutputStream fos = new FileOutputStream(profileOwnerID+"-"+cnt+"-thumbimage.bmp");
+							if (testMode) {
+								// dump to file
+								try {
+									FileOutputStream fos = new FileOutputStream(
+											profileOwnerID + "-" + cnt
+													+ "-thumbimage.bmp");
 									fos.write(allBytesInBlob);
 									fos.close();
-								}catch(Exception ex){
+								} catch (Exception ex) {
 								}
 							}
-						}else
+						} else
 							value = rs.getString(col_name);
-
 
 						values.put(col_name, new StringByteIterator(value));
 					}
 					result.add(values);
 				}
 			}
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
 
 	@Override
 	public int viewPendingRequests(int profileOwnerID,
-			Vector<HashMap<String, ByteIterator>> result,  boolean insertImage, boolean testMode) {
+			Vector<HashMap<String, ByteIterator>> result, boolean insertImage,
+			boolean testMode) {
 
 		int retVal = SUCCESS;
 		ResultSet rs = null;
-		if(profileOwnerID < 0)
+		if (profileOwnerID < 0)
 			return -1;
 
 		String query = "";
-		
+
 		try {
-			if(insertImage){
+			if (insertImage) {
 				query = "SELECT userid, inviterid, inviteeid, username, fname, lname, gender, dob, jdate, ldate, address,email,tel,tpic FROM users, friendship WHERE inviteeid=? and status = 1 and inviterid = userid";
-				if((preparedStatement = newCachedStatements.get(GETPENDIMG_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETPENDIMG_STMT, query);
-			}else{ 
+				if ((preparedStatement = newCachedStatements
+						.get(GETPENDIMG_STMT)) == null)
+					preparedStatement = createAndCacheStatement(
+							GETPENDIMG_STMT, query);
+			} else {
 				query = "SELECT userid, inviterid, inviteeid, username, fname, lname, gender, dob, jdate, ldate, address,email,tel FROM users, friendship WHERE inviteeid=? and status = 1 and inviterid = userid";
-				if((preparedStatement = newCachedStatements.get(GETPEND_STMT)) == null)
-					preparedStatement = createAndCacheStatement(GETPEND_STMT, query);
+				if ((preparedStatement = newCachedStatements.get(GETPEND_STMT)) == null)
+					preparedStatement = createAndCacheStatement(GETPEND_STMT,
+							query);
 			}
-			//preparedStatement = conn.prepareStatement(query);
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, profileOwnerID);
 			rs = preparedStatement.executeQuery();
-			int cnt=0;
-			while (rs.next()){
+			int cnt = 0;
+			while (rs.next()) {
 				cnt++;
 				HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
-				//get the number of columns and their names
+				// get the number of columns and their names
 				ResultSetMetaData md = rs.getMetaData();
 				int col = md.getColumnCount();
-				for (int i = 1; i <= col; i++){
+				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
 					String value = "";
-					if(col_name.equalsIgnoreCase("tpic")){
+					if (col_name.equalsIgnoreCase("tpic")) {
 						// Get as a BLOB
 						Blob aBlob = rs.getBlob(col_name);
-						byte[] allBytesInBlob = aBlob.getBytes(1, (int) aBlob.length());
+						byte[] allBytesInBlob = aBlob.getBytes(1,
+								(int) aBlob.length());
 						value = allBytesInBlob.toString();
-						if(testMode){
-							//dump to file
-							try{
-								FileOutputStream fos = new FileOutputStream(profileOwnerID+"-"+cnt+"-thumbimage.bmp");
+						if (testMode) {
+							// dump to file
+							try {
+								FileOutputStream fos = new FileOutputStream(
+										profileOwnerID + "-" + cnt
+												+ "-thumbimage.bmp");
 								fos.write(allBytesInBlob);
 								fos.close();
-							}catch(Exception ex){
+							} catch (Exception ex) {
 							}
 
 						}
-					}else
+					} else
 						value = rs.getString(col_name);
 
 					values.put(col_name, new StringByteIterator(value));
 				}
 				result.add(values);
 			}
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
 
 	@Override
 	public int acceptFriendRequest(int inviterID, int inviteeID) {
 
 		int retVal = SUCCESS;
-		if(inviterID < 0 || inviteeID < 0)
+		if (inviterID < 0 || inviteeID < 0)
 			return -1;
 		String query;
 		query = "UPDATE friendship SET status = 2 WHERE inviterid=? and inviteeid= ? ";
 		try {
 			conn.setAutoCommit(false);
-			if((preparedStatement = newCachedStatements.get(ACCREQ_STMT)) == null)
+			if ((preparedStatement = newCachedStatements.get(ACCREQ_STMT)) == null)
 				preparedStatement = createAndCacheStatement(ACCREQ_STMT, query);
-			//preparedStatement = conn.prepareStatement(query);
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, inviterID);
 			preparedStatement.setInt(2, inviteeID);
 			preparedStatement.executeUpdate();
-			//if(preparedStatement != null ) preparedStatement.close();
+			// if(preparedStatement != null ) preparedStatement.close();
 
 			query = "insert into friendship values (?, ?, 2)";
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(INSFRND_STMT)) == null)
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(INSFRND_STMT)) == null)
 				preparedStatement = createAndCacheStatement(INSFRND_STMT, query);
-			
+
 			preparedStatement.setInt(1, inviteeID);
 			preparedStatement.setInt(2, inviterID);
 			preparedStatement.executeUpdate();
-			//if(preparedStatement != null ) preparedStatement.close();
+			// if(preparedStatement != null ) preparedStatement.close();
 			conn.commit();
 			conn.setAutoCommit(true);
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 
-				if(preparedStatement != null)	
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
-		return retVal;		
+		return retVal;
 	}
 
 	@Override
 	public int rejectFriendRequest(int inviterID, int inviteeID) {
 		int retVal = SUCCESS;
-		if(inviterID < 0 || inviteeID < 0)
+		if (inviterID < 0 || inviteeID < 0)
 			return -1;
 
 		String query = "DELETE FROM friendship WHERE inviterid=? and inviteeid= ? and status=1";
 		try {
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(REJREQ_STMT)) == null)
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(REJREQ_STMT)) == null)
 				preparedStatement = createAndCacheStatement(REJREQ_STMT, query);
-			
-			
+
 			preparedStatement.setInt(1, inviterID);
 			preparedStatement.setInt(2, inviteeID);
 			preparedStatement.executeUpdate();
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
-		return retVal;	
+		return retVal;
 	}
 
 	@Override
 	public int CreateFriendship(int memberA, int memberB) {
 		int retVal = SUCCESS;
-		if(memberA < 0 || memberB < 0)
+		if (memberA < 0 || memberB < 0)
 			return -1;
 		try {
 			conn.setAutoCommit(false);
@@ -650,24 +690,24 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			preparedStatement.setInt(1, memberA);
 			preparedStatement.setInt(2, memberB);
 			preparedStatement.executeUpdate();
-			if(preparedStatement != null)
+			if (preparedStatement != null)
 				preparedStatement.close();
 			query = "INSERT INTO friendship values(?,?,2)";
 			preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, memberB);
 			preparedStatement.setInt(2, memberA);
 			preparedStatement.executeUpdate();
-			if(preparedStatement != null)
+			if (preparedStatement != null)
 				preparedStatement.close();
 			conn.commit();
 			conn.setAutoCommit(true);
 
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.close();
 				conn.setAutoCommit(true);
 			} catch (SQLException e) {
@@ -681,27 +721,26 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 	@Override
 	public int inviteFriends(int inviterID, int inviteeID) {
 		int retVal = SUCCESS;
-		if(inviterID < 0 || inviteeID < 0)
+		if (inviterID < 0 || inviteeID < 0)
 			return -1;
 
 		String query = "INSERT INTO friendship values(?,?,1)";
 		try {
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(INVFRND_STMT)) == null)
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(INVFRND_STMT)) == null)
 				preparedStatement = createAndCacheStatement(INVFRND_STMT, query);
-			
-			
+
 			preparedStatement.setInt(1, inviterID);
 			preparedStatement.setInt(2, inviteeID);
 			preparedStatement.executeUpdate();
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
@@ -710,32 +749,32 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		return retVal;
 	}
 
-	public int unFriendFriend(int friendid1, int friendid2){
+	public int unFriendFriend(int friendid1, int friendid2) {
 		int retVal = SUCCESS;
-		if(friendid1 < 0 || friendid2 < 0)
+		if (friendid1 < 0 || friendid2 < 0)
 			return -1;
 
 		String query = "DELETE FROM friendship WHERE (inviterid=? and inviteeid= ?) OR (inviterid=? and inviteeid= ?) and status=2";
 		try {
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(UNFRNDFRND_STMT)) == null)
-				preparedStatement = createAndCacheStatement(UNFRNDFRND_STMT, query);
-			
-			
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(UNFRNDFRND_STMT)) == null)
+				preparedStatement = createAndCacheStatement(UNFRNDFRND_STMT,
+						query);
+
 			preparedStatement.setInt(1, friendid1);
 			preparedStatement.setInt(2, friendid2);
 			preparedStatement.setInt(3, friendid2);
 			preparedStatement.setInt(4, friendid1);
 
 			preparedStatement.executeUpdate();
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
@@ -749,54 +788,54 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			Vector<HashMap<String, ByteIterator>> result) {
 		int retVal = SUCCESS;
 		ResultSet rs = null;
-		if(profileOwnerID < 0 || requesterID < 0 || k < 0)
+		if (profileOwnerID < 0 || requesterID < 0 || k < 0)
 			return -1;
 
 		String query = "SELECT * FROM resources WHERE walluserid = ? AND rownum <? ORDER BY rid desc";
 		try {
-			if((preparedStatement = newCachedStatements.get(GETTOPRES_STMT)) == null)
-				preparedStatement = createAndCacheStatement(GETTOPRES_STMT, query);
-			
-			
-			//preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(GETTOPRES_STMT)) == null)
+				preparedStatement = createAndCacheStatement(GETTOPRES_STMT,
+						query);
+
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, profileOwnerID);
-			preparedStatement.setInt(2, (k+1));
+			preparedStatement.setInt(2, (k + 1));
 			rs = preparedStatement.executeQuery();
-			while (rs.next()){
+			while (rs.next()) {
 				HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
-				//get the number of columns and their names
+				// get the number of columns and their names
 				ResultSetMetaData md = rs.getMetaData();
 				int col = md.getColumnCount();
-				for (int i = 1; i <= col; i++){
+				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
 					String value = rs.getString(col_name);
 					values.put(col_name, new StringByteIterator(value));
 				}
 				result.add(values);
 			}
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
 
-	public int getCreatedResources(int resourceCreatorID, Vector<HashMap<String, ByteIterator>> result) {
+	public int getCreatedResources(int resourceCreatorID,
+			Vector<HashMap<String, ByteIterator>> result) {
 		int retVal = SUCCESS;
 		ResultSet rs = null;
-		if(resourceCreatorID < 0)
+		if (resourceCreatorID < 0)
 			return -1;
 
 		String query = "SELECT * FROM resources WHERE creatorid = ?";
@@ -804,26 +843,26 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, resourceCreatorID);
 			rs = preparedStatement.executeQuery();
-			while (rs.next()){
+			while (rs.next()) {
 				HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
-				//get the number of columns and their names
+				// get the number of columns and their names
 				ResultSetMetaData md = rs.getMetaData();
 				int col = md.getColumnCount();
-				for (int i = 1; i <= col; i++){
+				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
 					String value = rs.getString(col_name);
 					values.put(col_name, new StringByteIterator(value));
 				}
 				result.add(values);
 			}
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
@@ -831,57 +870,56 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
-
 
 	@Override
 	public int getResourceComments(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
 		int retVal = SUCCESS;
 		ResultSet rs = null;
-		if(profileOwnerID < 0 || requesterID < 0 || resourceID < 0)
+		if (profileOwnerID < 0 || requesterID < 0 || resourceID < 0)
 			return -1;
 		String query;
-		//get comment cnt
-		try {	
-			query = "SELECT * FROM manipulation WHERE rid = ?";	
-			if((preparedStatement = newCachedStatements.get(GETRESCMT_STMT)) == null)
-				preparedStatement = createAndCacheStatement(GETRESCMT_STMT, query);
-			
-			
-			//preparedStatement = conn.prepareStatement(query);
+		// get comment cnt
+		try {
+			query = "SELECT * FROM manipulation WHERE rid = ?";
+			if ((preparedStatement = newCachedStatements.get(GETRESCMT_STMT)) == null)
+				preparedStatement = createAndCacheStatement(GETRESCMT_STMT,
+						query);
+
+			// preparedStatement = conn.prepareStatement(query);
 			preparedStatement.setInt(1, resourceID);
 			rs = preparedStatement.executeQuery();
-			while (rs.next()){
+			while (rs.next()) {
 				HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
-				//get the number of columns and their names
+				// get the number of columns and their names
 				ResultSetMetaData md = rs.getMetaData();
 				int col = md.getColumnCount();
-				for (int i = 1; i <= col; i++){
+				for (int i = 1; i <= col; i++) {
 					String col_name = md.getColumnName(i);
 					String value = rs.getString(col_name);
 					values.put(col_name, new StringByteIterator(value));
 				}
 				result.add(values);
 			}
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
 				if (rs != null)
 					rs.close();
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
 
 	@Override
@@ -889,35 +927,34 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			int resourceID) {
 		int retVal = SUCCESS;
 
-		if(profileOwnerID < 0 || commentCreatorID < 0 || resourceID < 0)
+		if (profileOwnerID < 0 || commentCreatorID < 0 || resourceID < 0)
 			return -1;
 
 		String query = "INSERT INTO manipulation(creatorid, rid, modifierid, timestamp, type, content) VALUES (?,?, ?,'datehihi','post', '1234')";
 		try {
-			//preparedStatement = conn.prepareStatement(query);
-			if((preparedStatement = newCachedStatements.get(POSTCMT_STMT)) == null)
+			// preparedStatement = conn.prepareStatement(query);
+			if ((preparedStatement = newCachedStatements.get(POSTCMT_STMT)) == null)
 				preparedStatement = createAndCacheStatement(POSTCMT_STMT, query);
-			
-			
+
 			preparedStatement.setInt(1, profileOwnerID);
 			preparedStatement.setInt(2, resourceID);
-			preparedStatement.setInt(3,commentCreatorID);
+			preparedStatement.setInt(3, commentCreatorID);
 			preparedStatement.executeUpdate();
-		}catch(SQLException sx){
+		} catch (SQLException sx) {
 			retVal = -2;
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(preparedStatement != null)
+				if (preparedStatement != null)
 					preparedStatement.clearParameters();
-					//preparedStatement.close();
+				// preparedStatement.close();
 			} catch (SQLException e) {
 				retVal = -2;
 				e.printStackTrace(System.out);
 			}
 		}
 
-		return retVal;		
+		return retVal;
 	}
 
 	@Override
@@ -928,55 +965,58 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		String query = "";
 		try {
 			st = conn.createStatement();
-			//get user count
+			// get user count
 			query = "SELECT count(*) from users";
 			rs = st.executeQuery(query);
-			if(rs.next()){
-				stats.put("usercount",rs.getString(1));
-			}else
-				stats.put("usercount","0"); //sth is wrong - schema is missing
+			if (rs.next()) {
+				stats.put("usercount", rs.getString(1));
+			} else
+				stats.put("usercount", "0"); // sth is wrong - schema is missing
 			rs.close();
-			//get user offset
+			// get user offset
 			query = "SELECT min(userid) from users";
 			rs = st.executeQuery(query);
 			String offset = "0";
-			if(rs.next()){
+			if (rs.next()) {
 				offset = rs.getString(1);
 			}
 			rs.close();
-			//get resources per user
-			query = "SELECT count(*) from resources where creatorid="+Integer.parseInt(offset);
+			// get resources per user
+			query = "SELECT count(*) from resources where creatorid="
+					+ Integer.parseInt(offset);
 			rs = st.executeQuery(query);
-			if(rs.next()){
-				stats.put("resourcesperuser",rs.getString(1));
-			}else{
-				stats.put("resourcesperuser","0");
+			if (rs.next()) {
+				stats.put("resourcesperuser", rs.getString(1));
+			} else {
+				stats.put("resourcesperuser", "0");
 			}
 			rs.close();
-			//get number of friends per user
-			query = "select count(*) from friendship where inviteeid="+Integer.parseInt(offset) +" AND status=2" ;
+			// get number of friends per user
+			query = "select count(*) from friendship where inviteeid="
+					+ Integer.parseInt(offset) + " AND status=2";
 			rs = st.executeQuery(query);
-			if(rs.next()){
-				stats.put("avgfriendsperuser",rs.getString(1));
-			}else
-				stats.put("avgfriendsperuser","0");
-			if(rs != null) rs.close();
-			
-			query = "select count(*) from friendship where (inviteeid="+Integer.parseInt(offset) +") AND status=1" ;
-			rs = st.executeQuery(query);
-			if(rs.next()){
-				stats.put("avgpendingperuser",rs.getString(1));
-			}else
-				stats.put("avgpendingperuser","0");
-			
+			if (rs.next()) {
+				stats.put("avgfriendsperuser", rs.getString(1));
+			} else
+				stats.put("avgfriendsperuser", "0");
+			if (rs != null)
+				rs.close();
 
-		}catch(SQLException sx){
+			query = "select count(*) from friendship where (inviteeid="
+					+ Integer.parseInt(offset) + ") AND status=1";
+			rs = st.executeQuery(query);
+			if (rs.next()) {
+				stats.put("avgpendingperuser", rs.getString(1));
+			} else
+				stats.put("avgpendingperuser", "0");
+
+		} catch (SQLException sx) {
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(rs != null)
+				if (rs != null)
 					rs.close();
-				if(st != null)
+				if (st != null)
 					st.close();
 			} catch (SQLException e) {
 				e.printStackTrace(System.out);
@@ -986,24 +1026,26 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		return stats;
 	}
 
-	public int queryPendingFriendshipIds(int inviteeid, Vector<Integer> pendingIds){
+	public int queryPendingFriendshipIds(int inviteeid,
+			Vector<Integer> pendingIds) {
 		Statement st = null;
 		ResultSet rs = null;
 		String query = "";
 		try {
 			st = conn.createStatement();
-			query = "SELECT inviterid from friendship where inviteeid='"+inviteeid+"' and status='1'";
+			query = "SELECT inviterid from friendship where inviteeid='"
+					+ inviteeid + "' and status='1'";
 			rs = st.executeQuery(query);
-			while(rs.next()){
+			while (rs.next()) {
 				pendingIds.add(rs.getInt(1));
-			}	
-		}catch(SQLException sx){
+			}
+		} catch (SQLException sx) {
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(rs != null)
+				if (rs != null)
 					rs.close();
-				if(st != null)
+				if (st != null)
 					st.close();
 			} catch (SQLException e) {
 				e.printStackTrace(System.out);
@@ -1013,25 +1055,26 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 		return 0;
 	}
 
-
-	public int queryConfirmedFriendshipIds(int profileId, Vector<Integer> confirmedIds){
+	public int queryConfirmedFriendshipIds(int profileId,
+			Vector<Integer> confirmedIds) {
 		Statement st = null;
 		ResultSet rs = null;
 		String query = "";
 		try {
 			st = conn.createStatement();
-			query = "SELECT inviteeid from friendship where inviterid="+profileId+" and status='2'";
+			query = "SELECT inviteeid from friendship where inviterid="
+					+ profileId + " and status='2'";
 			rs = st.executeQuery(query);
-			while(rs.next()){
+			while (rs.next()) {
 				confirmedIds.add(rs.getInt(1));
-			}	
-		}catch(SQLException sx){
+			}
+		} catch (SQLException sx) {
 			sx.printStackTrace(System.out);
-		}finally{
+		} finally {
 			try {
-				if(rs != null)
+				if (rs != null)
 					rs.close();
-				if(st != null)
+				if (st != null)
 					st.close();
 			} catch (SQLException e) {
 				e.printStackTrace(System.out);
@@ -1042,7 +1085,7 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 
 	}
 
-	public void createSchema(Properties props){
+	public void createSchema(Properties props) {
 
 		Statement stmt = null;
 
@@ -1068,8 +1111,8 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 					+ "(INVITERID NUMBER, INVITEEID NUMBER,"
 					+ "STATUS NUMBER DEFAULT 1" + ") NOLOGGING");
 
-			stmt.executeUpdate("CREATE TABLE MANIPULATION"
-					+ "(	MID NUMBER," + "CREATORID NUMBER, RID NUMBER,"
+			stmt.executeUpdate("CREATE TABLE MANIPULATION" + "(	MID NUMBER,"
+					+ "CREATORID NUMBER, RID NUMBER,"
 					+ "MODIFIERID NUMBER, TIMESTAMP VARCHAR2(200),"
 					+ "TYPE VARCHAR2(200), CONTENT VARCHAR2(200)"
 					+ ") NOLOGGING");
@@ -1077,10 +1120,10 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			stmt.executeUpdate("CREATE TABLE RESOURCES"
 					+ "(	RID NUMBER,CREATORID NUMBER,"
 					+ "WALLUSERID NUMBER, TYPE VARCHAR2(200),"
-					+ "BODY VARCHAR2(200), DOC VARCHAR2(200)"
-					+ ") NOLOGGING");
+					+ "BODY VARCHAR2(200), DOC VARCHAR2(200)" + ") NOLOGGING");
 
-			if (Boolean.parseBoolean(props.getProperty(Client.INSERT_IMAGE_PROPERTY,
+			if (Boolean.parseBoolean(props.getProperty(
+					Client.INSERT_IMAGE_PROPERTY,
 					Client.INSERT_IMAGE_PROPERTY_DEFAULT))) {
 				stmt.executeUpdate("CREATE TABLE USERS"
 						+ "(USERID NUMBER, USERNAME VARCHAR2(200), "
@@ -1133,15 +1176,13 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 			stmt.executeUpdate("CREATE OR REPLACE TRIGGER MINC before insert on manipulation "
 					+ "for each row "
 					+ "WHEN (new.mid is null) begin "
-					+ "select midInc.nextval into :new.mid from dual;"
-					+ "end;");
+					+ "select midInc.nextval into :new.mid from dual;" + "end;");
 			stmt.executeUpdate("ALTER TRIGGER MINC ENABLE");
 
 			stmt.executeUpdate("CREATE OR REPLACE TRIGGER RINC before insert on resources "
 					+ "for each row "
 					+ "WHEN (new.rid is null) begin "
-					+ "select ridInc.nextval into :new.rid from dual;"
-					+ "end;");
+					+ "select ridInc.nextval into :new.rid from dual;" + "end;");
 			stmt.executeUpdate("ALTER TRIGGER RINC ENABLE");
 
 			stmt.executeUpdate("CREATE OR REPLACE TRIGGER UINC before insert on users "
@@ -1150,9 +1191,8 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 					+ "select useridInc.nextval into :new.userid from dual;"
 					+ "end;");
 			stmt.executeUpdate("ALTER TRIGGER UINC ENABLE");
-			
-			
-			//build indexes
+
+			// build indexes
 			dropIndex(stmt, "RESOURCE_CREATORID");
 			dropIndex(stmt, "RESOURCES_WALLUSERID");
 			dropIndex(stmt, "FRIENDSHIP_INVITEEID");
@@ -1191,43 +1231,47 @@ public class SimpleJdbcDBClient extends DB implements JdbcDBClientConstants {
 	}
 
 	public void buildIndexes() {
-		Statement stmt  = null;
+		Statement stmt = null;
 		try {
 			stmt = conn.createStatement();
 			long startIdx = System.currentTimeMillis();
 
-			/*dropIndex(stmt, "RESOURCE_CREATORID");
-			dropIndex(stmt, "RESOURCES_WALLUSERID");
-			dropIndex(stmt, "FRIENDSHIP_INVITEEID");
-			dropIndex(stmt, "FRIENDSHIP_INVITERID");
-			dropIndex(stmt, "MANIPULATION_RID");
-			dropIndex(stmt, "MANIPULATION_CREATORID");
-			stmt.executeUpdate("CREATE INDEX RESOURCE_CREATORID ON RESOURCES (CREATORID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-
-			stmt.executeUpdate("CREATE INDEX FRIENDSHIP_INVITEEID ON FRIENDSHIP (INVITEEID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-
-			stmt.executeUpdate("CREATE INDEX MANIPULATION_RID ON MANIPULATION (RID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-
-			stmt.executeUpdate("CREATE INDEX RESOURCES_WALLUSERID ON RESOURCES (WALLUSERID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-
-			stmt.executeUpdate("CREATE INDEX FRIENDSHIP_INVITERID ON FRIENDSHIP (INVITERID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-
-			stmt.executeUpdate("CREATE INDEX MANIPULATION_CREATORID ON MANIPULATION (CREATORID)"
-					+ "COMPUTE STATISTICS NOLOGGING");
-					*/
+			/*
+			 * dropIndex(stmt, "RESOURCE_CREATORID"); dropIndex(stmt,
+			 * "RESOURCES_WALLUSERID"); dropIndex(stmt, "FRIENDSHIP_INVITEEID");
+			 * dropIndex(stmt, "FRIENDSHIP_INVITERID"); dropIndex(stmt,
+			 * "MANIPULATION_RID"); dropIndex(stmt, "MANIPULATION_CREATORID");
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX RESOURCE_CREATORID ON RESOURCES (CREATORID)" +
+			 * "COMPUTE STATISTICS NOLOGGING");
+			 * 
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX FRIENDSHIP_INVITEEID ON FRIENDSHIP (INVITEEID)" +
+			 * "COMPUTE STATISTICS NOLOGGING");
+			 * 
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX MANIPULATION_RID ON MANIPULATION (RID)" +
+			 * "COMPUTE STATISTICS NOLOGGING");
+			 * 
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX RESOURCES_WALLUSERID ON RESOURCES (WALLUSERID)" +
+			 * "COMPUTE STATISTICS NOLOGGING");
+			 * 
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX FRIENDSHIP_INVITERID ON FRIENDSHIP (INVITERID)" +
+			 * "COMPUTE STATISTICS NOLOGGING");
+			 * 
+			 * stmt.executeUpdate(
+			 * "CREATE INDEX MANIPULATION_CREATORID ON MANIPULATION (CREATORID)"
+			 * + "COMPUTE STATISTICS NOLOGGING");
+			 */
 
 			stmt.executeUpdate("analyze table users compute statistics");
 			stmt.executeUpdate("analyze table resources compute statistics");
 			stmt.executeUpdate("analyze table friendship compute statistics");
 			stmt.executeUpdate("analyze table manipulation compute statistics");
 			long endIdx = System.currentTimeMillis();
-			System.out
-			.println("Time to build database index structures(ms):"
+			System.out.println("Time to build database index structures(ms):"
 					+ (endIdx - startIdx));
 		} catch (Exception e) {
 			e.printStackTrace(System.out);

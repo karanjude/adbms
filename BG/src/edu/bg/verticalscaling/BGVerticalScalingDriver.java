@@ -137,7 +137,8 @@ public class BGVerticalScalingDriver {
 		Client bgClient = new Client();
 		boolean exit = false;
 
-		BGVerticalClient client = new BGVerticalClient(options.getBGParameter(BGVerticalScaleOptions.bg_param_db_url));
+		BGVerticalClient client = new BGVerticalClient(
+				options.getBGParameter(BGVerticalScaleOptions.bg_param_db_remote_url));
 		client.startDataStore(options.datastore, configuration.ram,
 				configuration.cores, configuration.threads);
 		DataStoreController dataStoreController = getDataStoreController(options);
@@ -166,6 +167,8 @@ public class BGVerticalScalingDriver {
 			e.printStackTrace();
 		} catch (BGVerticalScaleParameterException e) {
 			exit = true;
+			e.printStackTrace();
+		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			client.stopDataStore(options.datastore);
@@ -215,7 +218,7 @@ public class BGVerticalScalingDriver {
 		result.addAll(options.getBGParams());
 		result.add("-P");
 		String workloadDir = options.workloadDirectory.get(0);
-		if (action.equals("-load")) {
+		if (action.equals("-load") || action.equals("-schema")) {
 			result.add(getOrCreateWorkloadFile(workload, configuration,
 					workloadDir));
 		} else if (action.equals("-t")) {

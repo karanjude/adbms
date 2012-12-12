@@ -1,7 +1,5 @@
 package mysqlDataStore;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -11,24 +9,27 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.Validate;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 
+import voltdbDataStore.GetCreatedResources;
+import voltdbDataStore.PostCommentOnResource;
+
 import com.yahoo.ycsb.ByteIterator;
-import com.yahoo.ycsb.Client;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
+import com.yahoo.ycsb.StringByteIterator;
 
 public class MysqlClient extends DB implements MysqlClientConstants {
 
@@ -77,14 +78,6 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 	@Override
 	public void cleanup(boolean warmup) throws DBException {
 		try {
-			// close all cached prepare statements
-			Set<Integer> statementTypes = newCachedStatements.keySet();
-			Iterator<Integer> it = statementTypes.iterator();
-			while (it.hasNext()) {
-				int stmtType = it.next();
-				if (newCachedStatements.get(stmtType) != null)
-					newCachedStatements.get(stmtType).close();
-			}
 			if (conn != null)
 				conn.close();
 		} catch (SQLException e) {
@@ -132,7 +125,24 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 	public int getUserProfile(int requesterID, int profileOwnerID,
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
-		// TODO Auto-generated method stub
+		// System.out.println("getUserProfile");
+
+		FriendsPerUserProc friendsPerUserProc = new FriendsPerUserProc(conn);
+		result.put("friendcount", new StringByteIterator(friendsPerUserProc
+				.execute(profileOwnerID).toString()));
+
+		PendingFriendsPerUserProc pendingFriendsPerUserProc = new PendingFriendsPerUserProc(
+				conn);
+		result.put("pendingcount", new StringByteIterator(
+				pendingFriendsPerUserProc.execute(0).toString()));
+
+		ResourceCountProc resourceCountProc = new ResourceCountProc(conn);
+		result.put("resourcecount", new StringByteIterator(resourceCountProc
+				.execute(0).toString()));
+
+		ProfileDetailsProc profileDetailsProc = new ProfileDetailsProc(conn);
+		profileDetailsProc.execute(requesterID, result);
+
 		return 0;
 	}
 
@@ -140,61 +150,90 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 	public int getListOfFriends(int requesterID, int profileOwnerID,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
-		// TODO Auto-generated method stub
-		return 0;
+
+		// System.out.println("getListOfFriends");
+		ListFriendProc listFriendProc = new ListFriendProc(conn);
+		return listFriendProc.execute(profileOwnerID, result, fields);
 	}
 
 	@Override
 	public int viewPendingRequests(int profileOwnerID,
 			Vector<HashMap<String, ByteIterator>> values, boolean insertImage,
 			boolean testMode) {
-		// TODO Auto-generated method stub
-		return 0;
+
+		ViewFriendReqProc viewFriendReqProc = new ViewFriendReqProc(conn);
+		return viewFriendReqProc.execute(profileOwnerID, values);
 	}
 
 	@Override
 	public int acceptFriendRequest(int invitorID, int inviteeID) {
-		// TODO Auto-generated method stub
+		// System.out.println("acceptFriendRequest");
+		AcceptFreindProc acceptFreindProc = new AcceptFreindProc(conn);
+		acceptFreindProc.execute(invitorID, inviteeID);
 		return 0;
 	}
 
 	@Override
 	public int rejectFriendRequest(int invitorID, int inviteeID) {
-		// TODO Auto-generated method stub
+		// System.out.println("rejectFriendRequest");
+		DeleteFriendshipProc deleteFriendshipProc = new DeleteFriendshipProc(
+				conn);
+		deleteFriendshipProc.execute(invitorID, inviteeID);
 		return 0;
 	}
 
 	@Override
 	public int inviteFriends(int invitorID, int inviteeID) {
-		// TODO Auto-generated method stub
+		// System.out.println("inviteFriends");
+		InsertPendingFriendsProc insertPendingFriendsProc = new InsertPendingFriendsProc(
+				conn);
+		insertPendingFriendsProc.execute(invitorID, inviteeID, 1);
 		return 0;
 	}
 
 	@Override
 	public int getTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
-		return 0;
+		// System.out.println("getTopKResources");
+		ViewTopKResource viewTopKResource = new ViewTopKResource(conn);
+		return viewTopKResource.execute(profileOwnerID, k, result);
 	}
 
 	@Override
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
+		// System.out.println("getCreatedResources");
+		GetCreatedResourcesProc getCreatedResourcesProc = new GetCreatedResourcesProc(
+				conn);
+		getCreatedResourcesProc.execute(creatorID, result);
 		return 0;
 	}
 
 	@Override
 	public int getResourceComments(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
-		// TODO Auto-generated method stub
-		return 0;
+		// System.out.println("getResourceComments");
+		ViewCommentOnResourceProc viewCommentOnResourceProc = new ViewCommentOnResourceProc(
+				conn);
+		return viewCommentOnResourceProc.execute(resourceID, result);
 	}
 
 	@Override
 	public int postCommentOnResource(int commentCreatorID, int profileOwnerID,
 			int resourceID) {
-		// TODO Auto-generated method stub
+		// System.out.println("postCommentOnResource");
+		PostCommentOnResourceProc postCommentOnResourceProc = new PostCommentOnResourceProc(
+				conn);
+		ArrayList<String> tempList = new ArrayList<String>();
+		HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
+		for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
+			String field = entry.getValue().toString();
+			tempList.add(field);
+		}
+
+		postCommentOnResourceProc.execute(profileOwnerID, commentCreatorID,
+				resourceID, "", "", "");
+
 		return 0;
 	}
 
@@ -221,8 +260,7 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 				.toString());
 
 		FriendsPerUserProc friendsPerUserProc = new FriendsPerUserProc(conn);
-		stats.put("avgfriendsperuser", friendsPerUserProc.execute(offset)
-				.toString());
+		stats.put("avgfriendsperuser", friendsPerUserProc.execute(0).toString());
 
 		PendingFriendsPerUserProc pendingFriendsPerUserProc = new PendingFriendsPerUserProc(
 				conn);
@@ -245,27 +283,28 @@ public class MysqlClient extends DB implements MysqlClientConstants {
 		try {
 			stmt = conn.createStatement();
 
-			stmt.executeUpdate("DROP TABLE IF EXISTS FRIENDSHIP");
+			stmt.executeUpdate("DROP TABLE IF EXISTS Friendship");
 
-			stmt.executeUpdate("CREATE TABLE FRIENDSHIP(INVITERID int, INVITEEID int,STATUS int DEFAULT 1) ENGINE=InnoDB;");
+			stmt.executeUpdate("CREATE TABLE Friendship(INVITERID int, INVITEEID int,STATUS int DEFAULT 1) ENGINE=InnoDB;");
 
 			System.out.println("TABLE FRIENDSHIP CREATED");
 
-			stmt.executeUpdate("DROP TABLE IF EXISTS MODIFY");
+			stmt.executeUpdate("DROP TABLE IF EXISTS Modify");
 
-			stmt.executeUpdate("CREATE TABLE MODIFY(CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(255), TYPE VARCHAR(255), CONTENT VARCHAR(255)) ENGINE=InnoDB;");
+			stmt.executeUpdate("CREATE TABLE Modify(CREATORID int, RID int, MODIFIERID int, TIMESTAMP VARCHAR(255), TYPE VARCHAR(255), CONTENT VARCHAR(255)) ENGINE=InnoDB;");
 
 			stmt.executeUpdate("CREATE INDEX i4 ON Modify (rid);");
 
 			System.out.println("TABLE MODIFY CREATED");
 
-			stmt.executeUpdate("DROP TABLE IF EXISTS RESOURCE");
+			stmt.executeUpdate("DROP TABLE IF EXISTS Resource");
 
 			stmt.executeUpdate("CREATE TABLE Resource ("
 					+ "  rid INTEGER NOT NULL AUTO_INCREMENT,"
 					+ "  creatorid INTEGER," + "  wallUserId INTEGER NOT NULL,"
 					+ "  type VARCHAR(255)," + "  body VARCHAR(255),"
-					+ "  doc VARCHAR(255)," + "  PRIMARY KEY (rid)" + ") ENGINE=InnoDB; ");
+					+ "  doc VARCHAR(255)," + "  PRIMARY KEY (rid)"
+					+ ") ENGINE=InnoDB; ");
 
 			stmt.executeUpdate("CREATE INDEX i3 ON Resource (wallUserId);");
 

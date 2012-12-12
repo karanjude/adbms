@@ -1,15 +1,15 @@
 package mysqlDataStore;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class ThawFriendshipProc {
 
 	private final Connection conn;
 
 	public final String sql1 = new String(
-			"DELETE FROM friendship WHERE (userid1=? and userid2= ?) OR (userid1=? and userid2= ?) and status=2;");
+			"DELETE FROM Friendship WHERE (userid1=? and userid2= ?) OR (userid1=? and userid2= ?) and status=2;");
 	public final String sql2 = new String(
 			"UPDATE Users SET confirmedFriends = confirmedFriends - 1 WHERE userid= ? OR userid=?;");
 
@@ -22,19 +22,30 @@ public class ThawFriendshipProc {
 		String query1 = String.format(sql1, friendid1, friendid2, friendid22,
 				friendid21);
 		String query2 = String.format(sql2, friendid1, friendid22);
-		PreparedStatement statement = null;
-		PreparedStatement statement1 = null;
+		java.sql.Statement statement = null;
+		Statement statement1 = null;
 		try {
-			statement = conn.prepareStatement(query1);
-			statement.executeQuery();
-			statement1 = conn.prepareStatement(query2);
-			statement1.executeQuery();
+			conn.setAutoCommit(false);
+			statement = conn.createStatement();
+			statement.executeUpdate(query1);
+			statement1 = conn.createStatement();
+			statement1.executeUpdate(query2);
+			conn.commit();
 		} catch (SQLException e) {
+			if (null != conn)
+				try {
+					conn.rollback();
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
 			e.printStackTrace();
 		} finally {
 			try {
-				statement.close();
-				statement1.close();
+				if (null != statement)
+					statement.close();
+				if (null != statement1)
+					statement1.close();
+				conn.setAutoCommit(true);
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}

@@ -95,13 +95,13 @@ public class voltdbClient extends DB {
 	}
 
 	private void closeConnection() {
-		try {
-			client.close();
-			System.out.println("closing connection");
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		// try {
+		// client.close();
+		// System.out.println("closing connection");
+		// } catch (InterruptedException e) {
+		// TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
 	}
 
 	private void getClient() throws UnknownHostException {

@@ -26,6 +26,7 @@ public class InsertResourcesProc {
 		PreparedStatement statement = null;
 		PreparedStatement statement1 = null;
 		try {
+			conn.setAutoCommit(false);
 			statement = conn.prepareStatement(query1);
 			statement.setString(1, creatorid);
 			statement.setString(2, wallUsrId);
@@ -37,12 +38,23 @@ public class InsertResourcesProc {
 			statement1 = conn.prepareStatement(query2);
 			statement1.setString(1, creatorid);
 			statement1.executeUpdate();
+			conn.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
+			if (null != conn)
+				try {
+					conn.rollback();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 		} finally {
 			try {
-				statement.close();
-				statement1.close();
+				if (null != statement)
+					statement.close();
+				if (null != statement1)
+					statement1.close();
+				conn.setAutoCommit(true);
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}

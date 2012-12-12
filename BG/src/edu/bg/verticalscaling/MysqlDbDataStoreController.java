@@ -38,9 +38,25 @@ public class MysqlDbDataStoreController extends DataStoreControllerImpl {
 	@Override
 	public void startDataStoreWithConfiguration(int ram_, int cores_,
 			int threads_) {
+
+		ProcessBuilder processBuilder = new ProcessBuilder(
+				bgOptions
+						.getBGParameter(BGVerticalScaleOptions.datastore_service),
+				"stop");
+
+		try {
+			process = processBuilder.start();
+			errorGobbler = this.new StreamGobbler(process.getErrorStream());
+			outputGobbler = new StreamGobbler(process.getInputStream());
+			errorGobbler.start();
+			outputGobbler.start();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		String src = "my-" + ram_ + "-" + cores_ + ".cnf";
-		String dest = "/etc/my.cnf";
-		ProcessBuilder processBuilder = new ProcessBuilder("cp", src, dest);
+		String dest = "/etc/mysql/my.cnf";
+		processBuilder = new ProcessBuilder("cp", src, dest);
 		// processBuilder.directory(new File(
 		// "/Users/jude/dev/dbms/dbmsprj/adbms/BG/db/mysql/scripts"));
 		processBuilder.directory(new File(bgOptions
@@ -60,9 +76,10 @@ public class MysqlDbDataStoreController extends DataStoreControllerImpl {
 		// processBuilder = new ProcessBuilder(
 		// "/opt/local/etc/LaunchDaemons/org.macports.mysql5/mysql5.wrapper",
 		// "restart");
-		
+
 		processBuilder = new ProcessBuilder(
-				bgOptions.getBGParameter(BGVerticalScaleOptions.datastore_service),
+				bgOptions
+						.getBGParameter(BGVerticalScaleOptions.datastore_service),
 				"restart");
 
 		try {
@@ -100,13 +117,17 @@ public class MysqlDbDataStoreController extends DataStoreControllerImpl {
 			} catch (ClassNotFoundException e) {
 				System.out.println("Error in initializing the JDBS driver: "
 						+ e);
+				conn = null;
 			} catch (SQLException e) {
 				System.out.println("Error in database operation: " + e);
+				conn = null;
 			} catch (NumberFormatException e) {
 				System.out.println("Invalid value for fieldcount property. "
 						+ e);
+				conn = null;
 			} catch (Exception e) {
 				e.printStackTrace();
+				conn = null;
 			}
 
 		}
@@ -132,20 +153,25 @@ public class MysqlDbDataStoreController extends DataStoreControllerImpl {
 			UnknownDBException, WorkloadException, DBException {
 
 		if (bgOptions.actions.contains("-load")) {
-			List<String> args = new ArrayList<String>();
-			args.add("-schema");
-			args.addAll(bgOptions.getBGParams());
-			bgClient.doMain(args.toArray(new String[args.size()]));
+			String workload = bgOptions.loadWorkloads.get(0);
+			System.out.println("WORKLOAD........." + workload);
+			List<String> args = bgVerticalScalingDriver.buildArgs(
+					configuration, "-schema", workload);
+			if (args.size() > 0)
+				bgClient.doMain(args.toArray(new String[args.size()]));
 
 			args = bgVerticalScalingDriver.buildArgs(configuration, "-load",
-					bgOptions.loadWorkloads.get(0));
-			bgClient.doMain(args.toArray(new String[args.size()]));
+					workload);
+			if (args.size() > 0)
+				bgClient.doMain(args.toArray(new String[args.size()]));
 		}
 		if (bgOptions.actions.contains("-t")) {
 			for (String workload : bgOptions.actionWorkloads) {
+				System.out.println("WORKLOAD........" + workload);
 				List<String> args = bgVerticalScalingDriver.buildArgs(
 						configuration, "-t", workload);
-				bgClient.doMain(args.toArray(new String[args.size()]));
+				if (args.size() > 0)
+					bgClient.doMain(args.toArray(new String[args.size()]));
 			}
 		}
 	}

@@ -44,9 +44,10 @@ public class InsertUserProc {
 			statement.executeUpdate();
 		} catch (SQLException e) {
 			e.printStackTrace();
-		}finally{
+		} finally {
 			try {
-				statement.close();
+				if (null != statement)
+					statement.close();
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}

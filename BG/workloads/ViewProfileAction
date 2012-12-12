@@ -1,7 +1,7 @@
-operationcount=0
+operationcount=1000
 workload=edu.usc.bg.workloads.CoreWorkload
 
-usercount=10000
+usercount=1000
 useroffset=0
 resourcecountperuser=100
 friendcountperuser=100

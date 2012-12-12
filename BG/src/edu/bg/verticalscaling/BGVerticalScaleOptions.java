@@ -28,7 +28,7 @@ public class BGVerticalScaleOptions {
 	private static final String vert_workload_user_count = "vert_workload_user_count";
 	public static final String config_dir = "config_dir";
 	public static final String datastore_service = "datastore_service";
-	private static final String bg_param_db_remote_url = "bg_param_db_remote_url";
+	public static final String bg_param_db_remote_url = "bg_param_db_remote_url";
 
 	private final Properties properties;
 
